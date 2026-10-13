@@ -36,7 +36,11 @@ services:
     networks:
       - xunjia
     healthcheck:
-      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8000/api/health"]
+      # 基础镜像（python:3.12-slim）不含 curl，健康检查用容器自带的 python，
+      # 与 backend/Dockerfile 的 HEALTHCHECK 保持一致。
+      # 注意：compose 里的 healthcheck 会覆盖镜像自带的 HEALTHCHECK，
+      # 两处必须同时正确，否则会出现"镜像健康、compose 判不健康"的假故障。
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/api/health', timeout=4).status==200 else 1)"]
       interval: 30s
       timeout: 5s
       retries: 3

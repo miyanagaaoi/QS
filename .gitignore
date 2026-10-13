@@ -29,6 +29,12 @@ htmlcov/
 .browser4-cli-state/
 .xj-verify-*
 
+# 镜像归档（docker save 产物，体积大，不入库）
+*.tar
+*.tar.gz
+*.tar.zst
+release/
+
 # 编辑器与系统
 .vscode/
 .idea/
