@@ -1,0 +1,82 @@
+# 询价报价系统 · 单镜像版（v1.0）
+#
+# 一个镜像同时提供「前端静态页面 + REST API」，只跑一个容器、只暴露一个端口。
+# 与双镜像（backend/Dockerfile + frontend/Dockerfile，nginx 托管前端）并存，
+# 适合目标服务器资源紧张、或希望"一个 tar 一个容器"就能跑起来的场景。
+#
+# 前端由 FastAPI 直接托管：app/main.py 会从仓库根目录下的 frontend/dist 读取产物，
+# 并注册 SPA history 回退（见 main.py 的 spa_fallback）。因此这里把工作目录设为
+# /app/backend，产物放到 /app/frontend/dist，路径正好与开发环境一致，无需改后端代码。
+#
+# 构建：
+#   docker build -f Dockerfile.single -t xunjia:1.0 .
+# 运行：
+#   docker run -d -p 8000:8000 -e XUNJIA_SECRET_KEY=<密钥> \
+#     -e INITIAL_ADMIN_PASSWORD=<初始管理员密码> -v $(pwd)/data:/app/backend/data xunjia:1.0
+
+# ---------------------------------------------------------------------------
+# 阶段 1：构建前端（Node 仅用于编译，不进最终镜像）
+# ---------------------------------------------------------------------------
+FROM node:22-alpine AS web-build
+
+WORKDIR /web
+
+# 国内构建加速：npm 走 npmmirror（海外构建可用 --build-arg 覆盖）
+ARG NPM_REGISTRY=https://registry.npmmirror.com
+RUN npm config set registry "${NPM_REGISTRY}"
+
+COPY frontend/package.json frontend/package-lock.json* ./
+RUN npm install --no-audit --no-fund
+
+COPY frontend/ ./
+RUN npm run build
+
+
+# ---------------------------------------------------------------------------
+# 阶段 2：运行时（Python + 前端产物，无 nginx）
+# ---------------------------------------------------------------------------
+FROM python:3.12-slim
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1 \
+    TZ=Asia/Shanghai
+
+# 国内构建加速：apt/pip 走镜像源
+ARG APT_MIRROR=mirrors.tuna.tsinghua.edu.cn
+ARG PIP_INDEX=https://pypi.tuna.tsinghua.edu.cn/simple
+
+# tzdata 固定容器时区为北京时间（与后端 app_now() 口径一致）；
+# 健康检查用容器自带的 python，不装 curl。
+RUN set -eux; \
+    if [ -f /etc/apt/sources.list.d/debian.sources ]; then \
+        sed -i "s|deb.debian.org|${APT_MIRROR}|g" /etc/apt/sources.list.d/debian.sources; \
+    fi; \
+    if [ -f /etc/apt/sources.list ]; then \
+        sed -i "s|deb.debian.org|${APT_MIRROR}|g" /etc/apt/sources.list; \
+    fi; \
+    apt-get update; \
+    apt-get install -y --no-install-recommends tzdata; \
+    ln -snf /usr/share/zoneinfo/Asia/Shanghai /etc/localtime; \
+    echo "Asia/Shanghai" > /etc/timezone; \
+    rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app/backend
+
+COPY backend/requirements.txt ./
+RUN pip install --no-cache-dir -i "${PIP_INDEX}" -r requirements.txt
+
+# 后端代码 + 前端产物（保持 main.py 期望的相对路径：backend/ 与 frontend/dist 同级）
+COPY backend/app ./app
+COPY --from=web-build /web/dist /app/frontend/dist
+
+# 数据目录：SQLite 文件与上传附件（挂载卷持久化）
+RUN mkdir -p /app/backend/data/uploads
+
+EXPOSE 8000
+
+# 单容器同时服务页面与接口，健康检查仍打 API
+HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
+    CMD python -c "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/api/health', timeout=4).status==200 else 1)"
+
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "1"]

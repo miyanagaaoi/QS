@@ -1,18 +1,34 @@
 # 容器化部署说明（v1.0）
 
-本文档说明如何用 Docker Compose 部署本系统。适用于 Linux 服务器（内网部署）。
+本文档说明如何用 Docker 部署本系统。适用于 Linux 服务器（内网部署）。
+
+系统提供**两种镜像方案**，二选一即可：
+
+| | 双镜像（默认） | 单镜像 |
+|---|---|---|
+| 文件 | `docker-compose.yml` + `backend/Dockerfile` + `frontend/Dockerfile` | `docker-compose.single.yml` + `Dockerfile.single` |
+| 容器数 | 2（`xunjia-api` + `xunjia-web`） | 1（`xunjia-app`） |
+| 镜像 | `xunjia-api:1.0`(198MB) + `xunjia-web:1.0`(49.6MB) = 248MB | `xunjia:1.0`(199MB) |
+| 对外端口 | `80`（nginx 托管前端并反代 `/api`） | `8000`（FastAPI 同时托管前端与 `/api`） |
+| 归档 tar | 196M + 49M = 245M | 197M |
+| 优势 | 前后端可独立重建/发布；nginx 承担静态缓存与 gzip | 一个容器一个端口，交付/迁移最简单 |
+| 建议 | 正式部署 | 资源紧张、或希望"一个 tar 一个容器"跑起来 |
+
+两者功能完全一致（单镜像的前端由 FastAPI 托管，复用后端既有的 SPA history 回退）。
 
 ## 1. 前置条件
 
 - Docker Engine 20.10+ 与 Docker Compose v2（`docker compose version` 可验证）
-- 端口：`80`（前端，可改）、`8000`（后端，仅容器内网，无需对外）
-- 磁盘：镜像约 250MB + 数据目录
+- 双镜像：端口 `80`（前端，可改）+ `8000`（后端，仅容器内网）
+  单镜像：端口 `8000`（可改，唯一对外端口）
+- 磁盘：镜像约 200~250MB + 数据目录
 
 ## 2. 快速启动
 
+### 2.1 双镜像（推荐用于正式部署）
+
 ```bash
 # 1) 准备环境变量（至少改密钥与管理员密码）
-cp .env.example .env 2>/dev/null || true
 export XUNJIA_SECRET_KEY="$(openssl rand -hex 32)"
 export INITIAL_ADMIN_PASSWORD='YourStrongPassword123'
 
@@ -26,6 +42,33 @@ docker compose ps
 #    前端  http://<服务器IP>/
 #    接口文档 http://<服务器IP>/docs
 ```
+
+### 2.2 单镜像（一个容器一个端口）
+
+```bash
+export XUNJIA_SECRET_KEY="$(openssl rand -hex 32)"
+export INITIAL_ADMIN_PASSWORD='YourStrongPassword123'
+export APP_PORT=8000            # 需要改端口时设置
+
+docker compose -f docker-compose.single.yml up -d --build
+
+# 访问：http://<服务器IP>:8000/   接口文档 /docs
+```
+
+不用 compose、直接跑单个容器也可以：
+
+```bash
+docker build -f Dockerfile.single -t xunjia:1.0 .
+docker run -d --name xunjia-app -p 8000:8000 \
+  -e XUNJIA_SECRET_KEY="$(openssl rand -hex 32)" \
+  -e XUNJIA_ADMIN_PASSWORD='YourStrongPassword123' \
+  -v "$(pwd)/data:/app/backend/data" \
+  xunjia:1.0
+```
+
+> 单镜像的构建上下文是**项目根目录**，因此根目录的 `.dockerignore` 已排除
+> `frontend/node_modules`、`backend/.venv`、`data`、`release`、文档等
+> （上下文从 457MB 压到约 3.6MB）。改动这些排除项会显著影响构建速度。
 
 首次启动会自动建库（SQLite）并创建管理员账号 `admin`，密码取 `INITIAL_ADMIN_PASSWORD`。
 **启动日志会打印该账号**，可用 `docker compose logs api | grep 管理员` 查看。
@@ -78,15 +121,38 @@ docker compose up -d          # 镜像已存在，无需 --build
 > 若目标服务器完全离线且没有 `python`/`nginx` 基础镜像，用上面 save 的 tar 即可，
 > 因为 xunjia-api / xunjia-web 已包含全部依赖，`docker compose up -d` 不会再拉基础镜像。
 
+**单镜像的离线部署更简单**（只需一个 tar）：
+
+```bash
+# 联网机器上
+docker build -f Dockerfile.single -t xunjia:1.0 .
+docker save xunjia:1.0 -o xunjia-single-1.0.tar
+
+# 目标服务器上
+docker load -i xunjia-single-1.0.tar
+docker run -d --name xunjia-app -p 8000:8000 \
+  -e XUNJIA_SECRET_KEY="$(openssl rand -hex 32)" \
+  -e XUNJIA_ADMIN_PASSWORD='YourStrongPassword123' \
+  -v /opt/xunjia/data:/app/backend/data \
+  xunjia:1.0
+```
+
 ## 6. 常用运维命令
 
 ```bash
+# 双镜像
 docker compose ps                 # 状态与健康
 docker compose logs -f api        # 后端日志
 docker compose logs -f web        # nginx 日志
 docker compose restart api        # 重启后端
 docker compose down               # 停止（保留数据）
 docker compose down -v            # 停止并删除数据卷（⚠️ 会清库）
+
+# 单镜像
+docker compose -f docker-compose.single.yml ps
+docker compose -f docker-compose.single.yml logs -f app
+docker logs -f xunjia-app         # 直接跑容器时
+docker restart xunjia-app
 ```
 
 ## 7. 切换到 PostgreSQL（可选）

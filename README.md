@@ -44,7 +44,11 @@ docker compose up -d --build
 #    API文档 http://<服务器IP>/docs
 ```
 
-镜像标签：`xunjia-api:1.0`、`xunjia-web:1.0`。
+镜像标签：`xunjia-api:1.0`、`xunjia-web:1.0`（双镜像）。
+如需**单镜像**（一个容器一个端口，FastAPI 直接托管前端）：
+```bash
+docker compose -f docker-compose.single.yml up -d --build   # → http://<IP>:8000/
+```
 **离线部署、数据备份、环境变量表、故障排查**见 [doc/DEPLOY-DOCKER.md](doc/DEPLOY-DOCKER.md)。
 
 查看初始管理员密码：`docker compose logs api | grep 管理员`。

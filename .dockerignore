@@ -1,0 +1,42 @@
+# 构建单镜像时的上下文排除项。
+#
+# 单镜像的构建上下文是**项目根目录**（不像双镜像各自用 backend/ 或 frontend/ 子目录），
+# 因此必须显式排除依赖与产物，否则会把 node_modules、.venv、数据库、镜像 tar
+# 一起发给 Docker daemon，导致上下文几百 MB～数 GB、构建极慢。
+.git
+.gitignore
+.github
+
+# 依赖与构建产物（镜像内会重新安装/编译）
+frontend/node_modules
+frontend/dist
+backend/.venv
+backend/__pycache__
+**/__pycache__
+**/*.pyc
+.pytest_cache
+
+# 运行期数据（不应打进镜像）
+backend/data
+data
+*.db
+*.db-wal
+*.db-shm
+backend/data/uploads
+
+# 镜像归档与发布物
+release
+*.tar
+*.tar.gz
+
+# 文档、设计稿、验收痕迹（运行时不需要）
+doc
+PUSH-TO-GITHUB.txt
+.ssh-public-key.txt
+.browser4-cli
+.browser4-state
+.dsh
+
+# 测试与自检夹具
+backend/tests
+**/__verify__

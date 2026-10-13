@@ -1,0 +1,53 @@
+# 询价报价系统 · 单镜像部署（v1.0）
+#
+# 与根目录 docker-compose.yml（双镜像：api + web/nginx）并存，二选一使用：
+#
+#   双镜像（推荐给正式部署，前后端可独立重建）
+#     docker compose up -d --build
+#
+#   单镜像（一个容器、一个端口，适合资源紧张或简单交付）
+#     docker compose -f docker-compose.single.yml up -d --build
+#
+# 访问：默认 http://<服务器IP>:8000/（前端页面与 /api 由同一个进程提供）
+#
+# 用法示例：
+#   export XUNJIA_SECRET_KEY=$(openssl rand -hex 32)
+#   export INITIAL_ADMIN_PASSWORD='YourStrongPassword123'
+#   export SEED_DEMO=1                 # 需要演示数据时
+#   docker compose -f docker-compose.single.yml up -d --build
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile.single
+      args:
+        # 海外构建可覆盖为官方源
+        NPM_REGISTRY: ${NPM_REGISTRY:-https://registry.npmmirror.com}
+        APT_MIRROR: ${APT_MIRROR:-mirrors.tuna.tsinghua.edu.cn}
+        PIP_INDEX: ${PIP_INDEX:-https://pypi.tuna.tsinghua.edu.cn/simple}
+    image: xunjia:1.0
+    container_name: xunjia-app
+    environment:
+      TZ: Asia/Shanghai
+      # 生产环境保持 prod：仅创建 admin，不写入演示数据
+      XUNJIA_ENV: ${APP_ENV:-prod}
+      XUNJIA_SECRET_KEY: ${XUNJIA_SECRET_KEY:?必须设置 XUNJIA_SECRET_KEY（JWT 签名密钥）}
+      XUNJIA_DATABASE_URL: sqlite:////app/backend/data/xunjia.db
+      XUNJIA_UPLOAD_DIR: /app/backend/data/uploads
+      # 首次建库时的管理员密码；不设则随机生成并打印到启动日志
+      XUNJIA_ADMIN_PASSWORD: ${INITIAL_ADMIN_PASSWORD:-}
+      XUNJIA_SEED_DEMO: ${SEED_DEMO:-0}
+    ports:
+      - "${APP_PORT:-8000}:8000"
+    volumes:
+      # 数据库与上传附件持久化（备份此目录即可）
+      - ./data:/app/backend/data
+    restart: unless-stopped
+    healthcheck:
+      # 基础镜像不含 curl，用容器自带的 python 探测
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/api/health', timeout=4).status==200 else 1)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
