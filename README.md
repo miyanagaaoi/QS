@@ -44,6 +44,9 @@ docker compose up -d --build
 #    API文档 http://<服务器IP>/docs
 ```
 
+镜像标签：`xunjia-api:1.0`、`xunjia-web:1.0`。
+**离线部署、数据备份、环境变量表、故障排查**见 [doc/DEPLOY-DOCKER.md](doc/DEPLOY-DOCKER.md)。
+
 查看初始管理员密码：`docker compose logs api | grep 管理员`。
 
 数据（SQLite 文件与上传附件）持久化在 `./data`，备份即复制该目录。
