@@ -339,7 +339,10 @@ onMounted(async () => {
   sumFilter.date_to = range.to
   sumFilter.rfq_id = Number(route.query.rfq_id) || null
 
-  loadRfqOptions()
+  // 必须先等单据列表加载完：loadRfqOptions 里会给 compare.rfq_id 兜底默认值
+  // （未指定单据时选最新一张）。此前这里没有 await，导致查询先于默认选中执行，
+  // 出现"下拉已显示某单据、表格却是空的（没有符合筛选条件的明细行）"的矛盾状态。
+  await loadRfqOptions()
   listSupplierOptions()
     .then((list) => {
       supplierOptions.value = Array.isArray(list) ? list : []

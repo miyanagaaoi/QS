@@ -161,7 +161,7 @@ async function logout() {
       </el-menu>
 
       <div class="al-side-foot">
-        <span v-if="!collapsed">v1.2 · 内网部署</span>
+        <span v-if="!collapsed">v1.0 · 内网部署</span>
       </div>
     </aside>
 
