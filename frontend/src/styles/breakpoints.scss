@@ -1,0 +1,75 @@
+// ============================================================================
+// 断点 — 全站唯一定义（PRD 10.1 / FR-RWD-01）
+// ----------------------------------------------------------------------------
+//   手机  xs : < 768px
+//   平板  sm : 768 ~ 1199px
+//   桌面  md : >= 1200px
+//
+// 规则：
+//  1. 业务组件内禁止硬编码断点像素，一律 `@include mobile / tablet-up / desktop`。
+//  2. Mobile First：默认写手机样式，再用 `@include tablet-up` / `@include desktop`
+//     向上增强。`mobile` 是向下覆盖用的例外（只用于少量"手机上特例"）。
+//  3. JS 侧请用 composables/useBreakpoint.js，其数值由 vite.config.js
+//     从本文件解析后注入（__XJ_BREAKPOINTS__），两边永远一致。
+// ============================================================================
+
+$bp-mobile-max: 767.98px; // 手机上限
+$bp-tablet-min: 768px; // 平板下限
+$bp-tablet-max: 1199.98px; // 平板上限
+$bp-desktop-min: 1200px; // 桌面下限
+
+/// 手机（< 768px）
+@mixin mobile {
+  @media (max-width: #{$bp-mobile-max}) {
+    @content;
+  }
+}
+
+/// 平板区间（768 ~ 1199px）
+@mixin tablet {
+  @media (min-width: #{$bp-tablet-min}) and (max-width: #{$bp-tablet-max}) {
+    @content;
+  }
+}
+
+/// 桌面（>= 1200px）
+@mixin desktop {
+  @media (min-width: #{$bp-desktop-min}) {
+    @content;
+  }
+}
+
+/// Mobile First 主力：>= 768px（平板 + 桌面）
+@mixin tablet-up {
+  @media (min-width: #{$bp-tablet-min}) {
+    @content;
+  }
+}
+
+/// >= 1200px（等价 desktop，语义化别名）
+@mixin desktop-up {
+  @include desktop {
+    @content;
+  }
+}
+
+/// 触屏设备（用于 hover 相关降级，不做设备/UA 判断）
+@mixin touch {
+  @media (hover: none) and (pointer: coarse) {
+    @content;
+  }
+}
+
+/// 横屏
+@mixin landscape {
+  @media (orientation: landscape) {
+    @content;
+  }
+}
+
+/// 用户要求减少动效
+@mixin reduce-motion {
+  @media (prefers-reduced-motion: reduce) {
+    @content;
+  }
+}

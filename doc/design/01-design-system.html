@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>询价报价系统 · 设计系统与页面索引</title>
+<style>
+/* ============================================================
+   Design Tokens — 唯一来源。全部页面共用同一套变量。
+   实现时对应 frontend/src/styles/variables.scss
+   ============================================================ */
+:root{
+  /* 主色：深墨青。企业工具的稳重感，避开 AI 味的紫蓝渐变 */
+  --brand-900:#0B3B37;
+  --brand-800:#0E4F4A;
+  --brand-700:#12615A;
+  --brand-600:#16776E;
+  --brand-500:#1D8F84;
+  --brand-100:#E4F2F0;
+  --brand-50:#F1F8F7;
+
+  /* 中性：石板灰阶 */
+  --ink-900:#0F1419;
+  --ink-700:#2B3440;
+  --ink-500:#5A6672;
+  --ink-400:#7C8794;
+  --ink-300:#A6AFB9;
+  --line-strong:#CBD2DA;
+  --line:#E4E7EC;
+  --line-soft:#EFF1F4;
+  --surface:#FFFFFF;
+  --surface-sunken:#F6F7F9;
+  --surface-hover:#F2F4F7;
+
+  /* 语义状态色 */
+  --ok:#0F7B4F;      --ok-bg:#E7F5EE;    --ok-line:#BFE3D0;
+  --warn:#A8590B;    --warn-bg:#FFF3E2;  --warn-line:#F2D6A8;
+  --danger:#B42318;  --danger-bg:#FEECE9;--danger-line:#F5C6BF;
+  --info:#1B5FA8;    --info-bg:#E9F1FB;  --info-line:#C2D8F2;
+  --muted:#5A6672;   --muted-bg:#EFF1F4; --muted-line:#DDE1E6;
+
+  /* 最低价高亮：采购比价系统的核心视觉 */
+  --best-bg:#FFFBEB;
+  --best-line:#F5D77A;
+  --best-ink:#8A5A00;
+
+  /* 字体：中文优先 + 数字 tabular 对齐 */
+  --font:"Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei","Source Han Sans SC",sans-serif;
+  --font-num:"SF Mono","JetBrains Mono",Consolas,"Liberation Mono",monospace;
+
+  --r-sm:3px; --r-md:5px; --r-lg:8px;
+  --sh-1:0 1px 2px rgba(16,24,40,.06);
+  --sh-2:0 4px 12px rgba(16,24,40,.08);
+  --sh-3:0 12px 32px rgba(16,24,40,.14);
+
+  --sp-1:4px; --sp-2:8px; --sp-3:12px; --sp-4:16px; --sp-5:20px; --sp-6:24px; --sp-8:32px;
+  --nav-w:200px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{-webkit-text-size-adjust:100%}
+body{
+  font-family:var(--font);color:var(--ink-900);background:var(--surface-sunken);
+  font-size:14px;line-height:1.55;-webkit-font-smoothing:antialiased;
+}
+num,.num{font-family:var(--font-num);font-variant-numeric:tabular-nums;letter-spacing:-.01em}
+a{color:var(--brand-700)}
+
+/* ---------- 文档外壳 ---------- */
+.doc{max-width:1180px;margin:0 auto;padding:32px 24px 80px}
+.doc-head{border-bottom:2px solid var(--ink-900);padding-bottom:20px;margin-bottom:8px}
+.eyebrow{font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--brand-700);font-weight:700}
+h1{font-size:30px;line-height:1.25;letter-spacing:-.02em;margin:8px 0 10px}
+.lede{font-size:15px;color:var(--ink-500);max-width:74ch}
+.meta-row{display:flex;flex-wrap:wrap;gap:8px 24px;margin-top:14px;font-size:12.5px;color:var(--ink-500)}
+.meta-row b{color:var(--ink-900);font-weight:600}
+
+section{margin-top:44px}
+h2{font-size:19px;letter-spacing:-.01em;padding-bottom:10px;border-bottom:1px solid var(--line);margin-bottom:18px;display:flex;align-items:baseline;gap:10px}
+h2 .idx{font-family:var(--font-num);font-size:13px;color:var(--brand-600);font-weight:700}
+h3{font-size:15px;margin:24px 0 10px;letter-spacing:-.01em}
+p{margin:10px 0;max-width:80ch;color:var(--ink-700)}
+.note{background:var(--brand-50);border-left:3px solid var(--brand-600);padding:12px 14px;font-size:13px;color:var(--ink-700);border-radius:0 var(--r-sm) var(--r-sm) 0;margin:14px 0}
+.note b{color:var(--brand-800)}
+
+/* ---------- 设计方向卡 ---------- */
+.dir{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:14px;margin-top:16px}
+.dir-card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r-lg);padding:16px}
+.dir-card h4{font-size:13px;color:var(--brand-700);letter-spacing:.02em;margin-bottom:8px}
+.dir-card p{font-size:13px;margin:0;color:var(--ink-500)}
+.do-dont{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:14px}
+@media(max-width:640px){.do-dont{grid-template-columns:1fr}}
+.dd{border:1px solid var(--line);border-radius:var(--r-lg);padding:14px 16px;background:var(--surface)}
+.dd.yes{border-left:3px solid var(--ok)}
+.dd.no{border-left:3px solid var(--danger)}
+.dd h5{font-size:12.5px;margin-bottom:8px}
+.dd.yes h5{color:var(--ok)}
+.dd.no h5{color:var(--danger)}
+.dd ul{margin:0;padding-left:18px;font-size:12.5px;color:var(--ink-500);line-height:1.8}
+
+/* ---------- Token 展示 ---------- */
+.swatches{display:grid;grid-template-columns:repeat(auto-fill,minmax(148px,1fr));gap:10px}
+.sw{border:1px solid var(--line);border-radius:var(--r-md);overflow:hidden;background:var(--surface)}
+.sw .chip{height:52px}
+.sw .info{padding:8px 10px;font-size:11.5px;line-height:1.5}
+.sw code{font-family:var(--font-num);font-size:11px;color:var(--ink-500);display:block}
+.sw b{font-size:12px}
+
+.tbl{width:100%;border-collapse:collapse;background:var(--surface);font-size:13px;border:1px solid var(--line);border-radius:var(--r-lg);overflow:hidden}
+.tbl th{background:var(--surface-sunken);text-align:left;padding:9px 12px;font-weight:600;font-size:12px;color:var(--ink-500);border-bottom:1px solid var(--line);white-space:nowrap}
+.tbl td{padding:9px 12px;border-bottom:1px solid var(--line-soft);vertical-align:top}
+.tbl tr:last-child td{border-bottom:0}
+.tbl code{font-family:var(--font-num);font-size:12px;background:var(--surface-sunken);padding:1px 5px;border-radius:var(--r-sm);border:1px solid var(--line)}
+
+/* ---------- 组件示例 ---------- */
+.spec{padding:20px;background:var(--surface);border:1px solid var(--line);border-radius:var(--r-lg);display:flex;flex-wrap:wrap;gap:12px;align-items:center}
+.spec-label{width:100%;font-size:11.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-400);font-weight:700;margin-bottom:2px}
+
+/* 按钮 */
+.btn{font-family:inherit;font-size:13px;font-weight:600;border-radius:var(--r-md);border:1px solid transparent;padding:0 14px;height:34px;display:inline-flex;align-items:center;justify-content:center;gap:6px;cursor:pointer;transition:background .15s,border-color .15s,box-shadow .15s;white-space:nowrap}
+.btn:focus-visible{outline:2px solid var(--brand-500);outline-offset:2px}
+.btn-primary{background:var(--brand-700);color:#fff;border-color:var(--brand-700)}
+.btn-primary:hover{background:var(--brand-800)}
+.btn-secondary{background:var(--surface);color:var(--ink-700);border-color:var(--line-strong)}
+.btn-secondary:hover{background:var(--surface-hover);border-color:var(--ink-300)}
+.btn-ghost{background:transparent;color:var(--brand-700);border-color:transparent}
+.btn-ghost:hover{background:var(--brand-50)}
+.btn-danger{background:var(--surface);color:var(--danger);border-color:var(--danger-line)}
+.btn-danger:hover{background:var(--danger-bg)}
+.btn-sm{height:28px;font-size:12px;padding:0 10px}
+.btn-lg{height:42px;font-size:14px;padding:0 20px}
+.btn[disabled]{background:var(--surface-sunken);color:var(--ink-300);border-color:var(--line);cursor:not-allowed}
+
+/* 徽标 */
+.badge{display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:600;padding:2px 9px;border-radius:100px;border:1px solid;line-height:1.7;white-space:nowrap}
+.badge::before{content:"";width:5px;height:5px;border-radius:50%;background:currentColor;flex:none}
+.b-draft{color:var(--muted);background:var(--muted-bg);border-color:var(--muted-line)}
+.b-pub{color:var(--info);background:var(--info-bg);border-color:var(--info-line)}
+.b-closed{color:var(--warn);background:var(--warn-bg);border-color:var(--warn-line)}
+.b-pending{color:var(--muted);background:var(--muted-bg);border-color:var(--muted-line)}
+.b-partial{color:var(--warn);background:var(--warn-bg);border-color:var(--warn-line)}
+.b-quoted{color:var(--ok);background:var(--ok-bg);border-color:var(--ok-line)}
+.b-danger{color:var(--danger);background:var(--danger-bg);border-color:var(--danger-line)}
+.b-best{color:var(--best-ink);background:var(--best-bg);border-color:var(--best-line)}
+
+/* 输入 */
+.field{display:flex;flex-direction:column;gap:5px}
+.field label{font-size:12.5px;font-weight:600;color:var(--ink-700)}
+.field label .req{color:var(--danger)}
+.input{font-family:inherit;font-size:14px;height:36px;padding:0 11px;border:1px solid var(--line-strong);border-radius:var(--r-md);background:var(--surface);color:var(--ink-900);width:100%}
+.input::placeholder{color:var(--ink-300)}
+.input:focus{outline:none;border-color:var(--brand-600);box-shadow:0 0 0 3px var(--brand-100)}
+.input[disabled],.input[readonly]{background:var(--surface-sunken);color:var(--ink-500);cursor:not-allowed}
+
+/* 进度条 */
+.progress{height:6px;border-radius:100px;background:var(--line);overflow:hidden;min-width:90px}
+.progress i{display:block;height:100%;background:var(--brand-600)}
+.progress.warn i{background:var(--warn)}
+.progress.ok i{background:var(--ok)}
+
+/* 页面索引卡 */
+.pages{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px}
+.pcard{display:block;background:var(--surface);border:1px solid var(--line);border-radius:var(--r-lg);padding:18px;text-decoration:none;color:inherit;transition:border-color .15s,box-shadow .15s,transform .15s}
+.pcard:hover{border-color:var(--brand-500);box-shadow:var(--sh-2);transform:translateY(-1px)}
+.pcard .pn{font-family:var(--font-num);font-size:11.5px;color:var(--brand-600);font-weight:700;letter-spacing:.06em}
+.pcard h4{font-size:15px;margin:6px 0 6px;letter-spacing:-.01em}
+.pcard p{font-size:12.5px;color:var(--ink-500);margin:0}
+.pcard .tags{margin-top:12px;display:flex;flex-wrap:wrap;gap:6px}
+.tag{font-size:11px;font-weight:600;color:var(--ink-500);background:var(--surface-sunken);border:1px solid var(--line);padding:2px 7px;border-radius:var(--r-sm)}
+.tag.m{color:var(--brand-700);background:var(--brand-50);border-color:var(--brand-100)}
+.tag.d{color:var(--ink-500)}
+
+/* 断点尺 */
+.ruler{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--line);border:1px solid var(--line);border-radius:var(--r-lg);overflow:hidden;margin-top:12px}
+.ruler div{background:var(--surface);padding:14px}
+.ruler b{display:block;font-size:13px;margin-bottom:4px}
+.ruler code{font-family:var(--font-num);font-size:12px;color:var(--brand-700);font-weight:600}
+.ruler p{font-size:12px;margin:6px 0 0;color:var(--ink-500)}
+@media(max-width:720px){.ruler{grid-template-columns:1fr}}
+
+footer{margin-top:56px;padding-top:18px;border-top:1px solid var(--line);font-size:12px;color:var(--ink-400)}
+</style>
+</head>
+<body>
+<div class="doc">
+
+  <header class="doc-head">
+    <div class="eyebrow">询价报价系统 · 页面设计稿</div>
+    <h1>设计系统与页面索引</h1>
+    <p class="lede">本套设计稿对应 <b>PRD v1.1</b> 的三页面需求与手机端响应式要求。所有页面的视觉语言、组件形态、状态色与断点行为都在此页定义，供开发与评审对照。</p>
+    <div class="meta-row">
+      <span>对齐文档：<b>doc/PRD-询价报价系统.md</b></span>
+      <span>版本：<b>v1.1</b></span>
+      <span>技术落地：<b>Vue 3 + Element Plus</b></span>
+      <span>断点：<b>&lt;768 / 768~1199 / ≥1200</b></span>
+    </div>
+  </header>
+
+  <div class="note">
+    <b>阅读顺序建议：</b>先看本页的「设计方向」与「Token」，再打开 <code>02</code>~<code>04</code> 三个页面文件。每个页面文件同时展示<b>桌面形态</b>与<b>手机形态</b>；其中手机端报价页（03）是本次适配的重点，请重点评审。
+  </div>
+
+  <!-- ============ 设计方向 ============ -->
+  <section>
+    <h2><span class="idx">01</span>设计方向</h2>
+    <p>这是一个<b>内部采购工具</b>，不是营销页面。使用者一天要开几十次、在同一屏里比对十几个数字。因此设计方向定为 <b>「紧凑克制的企业工具感」</b>：信息密度优先于留白，对齐与数字可读性优先于装饰。</p>
+
+    <div class="dir">
+      <div class="dir-card">
+        <h4>主色 · 深墨青</h4>
+        <p>用 <code>#0E4F4A</code> 而非常见的紫蓝渐变。采购场景需要"可信、稳定"的心理暗示，深青比紫蓝更少 AI 味，也与"价格/金钱"的红绿状态色不冲突。</p>
+      </div>
+      <div class="dir-card">
+        <h4>主角 · 最低价</h4>
+        <p>系统的核心价值是"哪家最便宜"。最低价单元格用琥珀底色 + 左侧强调边，一眼可扫。这是全站唯一允许使用饱和暖色的地方。</p>
+      </div>
+      <div class="dir-card">
+        <h4>数字 · 等宽对齐</h4>
+        <p>金额、数量、日期统一 tabular-nums 等宽数字。比价表里数字不右对齐就失去了可读性 —— 这是工具类界面的底线。</p>
+      </div>
+      <div class="dir-card">
+        <h4>形状 · 小圆角</h4>
+        <p>圆角统一 3~8px，按钮 5px。大圆角、"药丸"按钮会削弱表格的秩序感。卡片描边 1px 清晰线，不用重阴影堆叠。</p>
+      </div>
+    </div>
+
+    <div class="do-dont">
+      <div class="dd yes">
+        <h5>✓ 应该这样</h5>
+        <ul>
+          <li>表格行高紧凑（40px），首屏尽量多的行</li>
+          <li>状态用「圆点 + 文字」徽标，不用纯色块</li>
+          <li>数字右对齐、等宽；金额带 ¥ 且两位小数</li>
+          <li>手机端底部操作栏常驻，主按钮可达</li>
+          <li>空状态、加载态、错误态都给出明确文案</li>
+        </ul>
+      </div>
+      <div class="dd no">
+        <h5>✗ 避免这样</h5>
+        <ul>
+          <li>紫蓝渐变、玻璃拟态、装饰性色块</li>
+          <li>把"待报价"和"已报价"只靠颜色区分</li>
+          <li>表格里混用左右对齐、小数位不统一</li>
+          <li>手机端把 PC 表格压缩成横向滚动条</li>
+          <li>弹窗套弹窗、确认按钮藏在滚动区外</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ Token ============ -->
+  <section>
+    <h2><span class="idx">02</span>色彩与状态</h2>
+
+    <h3>主色阶</h3>
+    <div class="swatches">
+      <div class="sw"><div class="chip" style="background:var(--brand-900)"></div><div class="info"><b>brand-900</b><code>#0B3B37</code></div></div>
+      <div class="sw"><div class="chip" style="background:var(--brand-800)"></div><div class="info"><b>brand-800</b><code>#0E4F4A</code></div></div>
+      <div class="sw"><div class="chip" style="background:var(--brand-700)"></div><div class="info"><b>brand-700 · 主按钮</b><code>#12615A</code></div></div>
+      <div class="sw"><div class="chip" style="background:var(--brand-600)"></div><div class="info"><b>brand-600 · 焦点/进度</b><code>#16776E</code></div></div>
+      <div class="sw"><div class="chip" style="background:var(--brand-100)"></div><div class="info"><b>brand-100 · 浅底</b><code>#E4F2F0</code></div></div>
+      <div class="sw"><div class="chip" style="background:var(--brand-50)"></div><div class="info"><b>brand-50 · 选中行</b><code>#F1F8F7</code></div></div>
+    </div>
+
+    <h3>语义状态色与对应业务状态</h3>
+    <table class="tbl">
+      <thead><tr><th>用途</th><th>样式</th><th>色值</th><th>PRD 对应</th></tr></thead>
+      <tbody>
+        <tr><td>草稿 / 待报价</td><td><span class="badge b-draft">草稿</span> <span class="badge b-pending">待报价</span></td><td><code>--muted #5A6672</code></td><td>rfq.status=draft / rfq_supplier.status=pending</td></tr>
+        <tr><td>已发布 / 进行中</td><td><span class="badge b-pub">已发布</span></td><td><code>--info #1B5FA8</code></td><td>rfq.status=published</td></tr>
+        <tr><td>报价中（部分填写）</td><td><span class="badge b-partial">报价中 3/8</span></td><td><code>--warn #A8590B</code></td><td>rfq_supplier.status=partial</td></tr>
+        <tr><td>已截止</td><td><span class="badge b-closed">已截止</span></td><td><code>--warn #A8590B</code></td><td>rfq.status=closed</td></tr>
+        <tr><td>已报价（完成）</td><td><span class="badge b-quoted">已报价</span></td><td><code>--ok #0F7B4F</code></td><td>rfq_supplier.status=quoted</td></tr>
+        <tr><td>最低价 / 中标建议</td><td><span class="badge b-best">最低价</span></td><td><code>--best #FFFBEB / #8A5A00</code></td><td>报表视图 A 最低价高亮</td></tr>
+        <tr><td>风险 / 未报价 / 停用</td><td><span class="badge b-danger">未报价</span></td><td><code>--danger #B42318</code></td><td>未报价供货商、账号停用</td></tr>
+      </tbody>
+    </table>
+
+    <div class="note">
+      <b>无障碍约束：</b>所有状态徽标都必须<span style="border-bottom:1px dashed var(--ink-300)">带文字</span>，不能只用颜色区分（色盲用户与黑白打印场景）。徽标前的圆点用于加速扫读，不承担唯一区分职责。
+    </div>
+  </section>
+
+  <!-- ============ 组件 ============ -->
+  <section>
+    <h2><span class="idx">03</span>基础组件</h2>
+
+    <h3>按钮</h3>
+    <div class="spec">
+      <div class="spec-label">主 / 次 / 幽灵 / 危险 / 尺寸 / 禁用</div>
+      <button class="btn btn-primary">发布询价单</button>
+      <button class="btn btn-secondary">保存草稿</button>
+      <button class="btn btn-ghost">取消</button>
+      <button class="btn btn-danger">删除</button>
+      <button class="btn btn-primary btn-sm">小号</button>
+      <button class="btn btn-primary btn-lg">大号（手机端主操作）</button>
+      <button class="btn btn-primary" disabled>已截止</button>
+    </div>
+
+    <h3>表单</h3>
+    <div class="spec" style="align-items:flex-start">
+      <div class="field" style="width:220px">
+        <label>材料名称 <span class="req">*</span></label>
+        <input class="input" value="订书机">
+      </div>
+      <div class="field" style="width:220px">
+        <label>报价截止时间 <span class="req">*</span></label>
+        <input class="input" type="date" value="2026-10-15">
+      </div>
+      <div class="field" style="width:220px">
+        <label>含税单价 <span class="req">*</span></label>
+        <input class="input num" inputmode="decimal" value="113.00" style="text-align:right">
+      </div>
+      <div class="field" style="width:220px">
+        <label>不含税单价（自动计算）</label>
+        <input class="input num" value="100.00" readonly style="text-align:right">
+      </div>
+    </div>
+    <p style="font-size:12.5px;color:var(--ink-500)">焦点态使用 <code>3px</code> 主色光环 + 边框变色；金额输入框右对齐并使用等宽数字。</p>
+
+    <h3>报价进度</h3>
+    <div class="spec">
+      <div class="spec-label">三家受邀 · 两家已报价</div>
+      <div style="width:200px">
+        <div style="display:flex;justify-content:space-between;font-size:12.5px;margin-bottom:5px"><span>已报价进度</span><b class="num">2 / 3</b></div>
+        <div class="progress ok"><i style="width:66.7%"></i></div>
+      </div>
+      <div style="width:200px">
+        <div style="display:flex;justify-content:space-between;font-size:12.5px;margin-bottom:5px"><span>明细填写</span><b class="num">3 / 8 行</b></div>
+        <div class="progress warn"><i style="width:37.5%"></i></div>
+      </div>
+    </div>
+
+    <h3>最低价单元格（报表核心视觉）</h3>
+    <div class="spec">
+      <div class="spec-label">普通价 / 最低价 / 未报价</div>
+      <div class="num" style="font-size:15px">¥128.00</div>
+      <div class="num" style="font-size:15px;font-weight:700;color:var(--best-ink);background:var(--best-bg);border:1px solid var(--best-line);border-left:3px solid var(--best-line);border-radius:var(--r-sm);padding:5px 12px">¥113.00 <span style="font-size:11px;font-weight:600">最低</span></div>
+      <div class="num" style="color:var(--ink-300)">— 未报价</div>
+    </div>
+  </section>
+
+  <!-- ============ 断点 ============ -->
+  <section>
+    <h2><span class="idx">04</span>断点与形态切换</h2>
+    <p>全站三档断点，Mobile First 编写（先写手机样式，再向上增强）。实现时集中定义在 <code>styles/breakpoints.scss</code>，<b>业务组件内禁止硬编码像素断点</b>。</p>
+    <div class="ruler">
+      <div>
+        <b>手机</b><code>&lt; 768px</code>
+        <p>单列布局 · 导航收为汉堡抽屉 · 列表卡片化 · 宽表内部横向滚动 · 底部吸底操作栏</p>
+      </div>
+      <div>
+        <b>平板</b><code>768 ~ 1199px</code>
+        <p>导航折叠为 64px 图标栏 · 表格显示 6~8 列 · 表单两列 · 报表指标卡两列</p>
+      </div>
+      <div>
+        <b>桌面</b><code>≥ 1200px</code>
+        <p>左侧导航常驻 200px · 表格全列展示 · 表单三列 · 报表指标卡四列</p>
+      </div>
+    </div>
+
+    <h3>关键形态切换清单</h3>
+    <table class="tbl">
+      <thead><tr><th>组件</th><th>桌面</th><th>手机</th><th>PRD 对应</th></tr></thead>
+      <tbody>
+        <tr><td>数据列表</td><td>el-table 全列</td><td>卡片列表（每卡 4~5 个关键字段）</td><td><code>FR-RWD-03</code></td></tr>
+        <tr><td>筛选区</td><td>表单行内平铺</td><td>"筛选"按钮 → 底部弹层</td><td><code>FR-RWD-04</code></td></tr>
+        <tr><td>报价明细填写</td><td>表格逐行</td><td>物料卡片，默认只展开单价</td><td><code>FR-RWD-17</code></td></tr>
+        <tr><td>主要操作</td><td>页面右上角按钮组</td><td>底部 sticky 操作栏</td><td><code>FR-RWD-19</code></td></tr>
+        <tr><td>长清单（&gt;10 行）</td><td>连续滚动</td><td>每 10 行分段 + 上一段/下一段</td><td><code>FR-RWD-31</code></td></tr>
+        <tr><td>重操作（导入/批量）</td><td>完整可用</td><td>隐藏 + 引导到 PC</td><td><code>FR-RWD-12/14</code></td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- ============ 页面索引 ============ -->
+  <section>
+    <h2><span class="idx">05</span>页面索引</h2>
+    <div class="pages">
+      <a class="pcard" href="02-pages-buyer.html">
+        <div class="pn">02 / 我方侧</div>
+        <h4>报价单 · 报价进度 · 统计报表</h4>
+        <p>采购管理下的核心三屏：单据列表（含草稿/已发布/已截止三态）、新建询价单与 Excel 导入、报价进度催办、报表视图 A 比价与视图 B 汇总。</p>
+        <div class="tags">
+          <span class="tag d">桌面为主</span><span class="tag m">手机可读</span>
+          <span class="tag">报表</span><span class="tag">导入</span>
+        </div>
+      </a>
+      <a class="pcard" href="03-pages-supplier.html">
+        <div class="pn">03 / 供货商侧 ★</div>
+        <h4>待报价 · 手机报价填报</h4>
+        <p><b>本次适配重点。</b>手机端物料卡片、默认只展开单价、底部吸底操作栏、已填计数、每 10 行分段、拍照上传、弱网保存失败不清空。</p>
+        <div class="tags">
+          <span class="tag m">手机优先</span><span class="tag">报价填报</span>
+          <span class="tag">响应式核心</span>
+        </div>
+      </a>
+      <a class="pcard" href="04-pages-admin.html">
+        <div class="pn">04 / 系统管理</div>
+        <h4>账号管理 · 供货商档案 · 字典</h4>
+        <p>我方账号与供货商账号管理、批量导入（含错误报告）、启停用与重置密码、供货商档案、计量单位与税率字典、操作日志。</p>
+        <div class="tags">
+          <span class="tag d">桌面为主</span><span class="tag">批量导入</span><span class="tag">日志</span>
+        </div>
+      </a>
+    </div>
+
+    <div class="note" style="margin-top:20px">
+      <b>设计稿与 PRD 的对应关系：</b>本套稿件覆盖 PRD 第 5 章全部 P0 页面的视觉与形态；第 6 章数据模型、第 7 章接口契约不在设计稿范围内。标注在页面旁的 <code>FR-xxx</code> 编号可直接回查 PRD 对应需求条目。
+    </div>
+  </section>
+
+  <footer>
+    询价报价系统 · 页面设计稿 v1.1 · 配套 <b>doc/PRD-询价报价系统.md</b> · 设计方向：紧凑克制的企业工具感
+  </footer>
+</div>
+</body>
+</html>

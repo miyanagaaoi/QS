@@ -1,0 +1,1275 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>询价报价系统 · 我方侧页面（报价单 / 进度 / 报表）</title>
+<style>
+:root{
+  --brand-900:#0B3B37;--brand-800:#0E4F4A;--brand-700:#12615A;--brand-600:#16776E;
+  --brand-100:#E4F2F0;--brand-50:#F1F8F7;
+  --ink-900:#0F1419;--ink-700:#2B3440;--ink-500:#5A6672;--ink-400:#7C8794;--ink-300:#A6AFB9;
+  --line-strong:#CBD2DA;--line:#E4E7EC;--line-soft:#EFF1F4;
+  --surface:#FFF;--surface-sunken:#F6F7F9;--surface-hover:#F2F4F7;
+  --ok:#0F7B4F;--ok-bg:#E7F5EE;--ok-line:#BFE3D0;
+  --warn:#A8590B;--warn-bg:#FFF3E2;--warn-line:#F2D6A8;
+  --danger:#B42318;--danger-bg:#FEECE9;--danger-line:#F5C6BF;
+  --info:#1B5FA8;--info-bg:#E9F1FB;--info-line:#C2D8F2;
+  --muted:#5A6672;--muted-bg:#EFF1F4;--muted-line:#DDE1E6;
+  --best-bg:#FFFBEB;--best-line:#F5D77A;--best-ink:#8A5A00;
+  --font:"Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+  --font-num:"SF Mono","JetBrains Mono",Consolas,monospace;
+  --r-sm:3px;--r-md:5px;--r-lg:8px;
+  --sh-1:0 1px 2px rgba(16,24,40,.06);--sh-2:0 4px 12px rgba(16,24,40,.08);--sh-3:0 12px 32px rgba(16,24,40,.16);
+  --nav-w:200px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:var(--font);background:#E9EBEF;color:var(--ink-900);font-size:13px;line-height:1.5;-webkit-font-smoothing:antialiased}
+.num{font-family:var(--font-num);font-variant-numeric:tabular-nums;letter-spacing:-.01em}
+button{font-family:inherit}
+
+/* ================= 文档壳 ================= */
+.wrap{max-width:1420px;margin:0 auto;padding:28px 24px 72px}
+.doc-head{border-bottom:2px solid var(--ink-900);padding-bottom:16px;margin-bottom:8px}
+.eyebrow{font-size:11.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--brand-700);font-weight:700}
+h1{font-size:26px;letter-spacing:-.02em;margin:8px 0 8px}
+.lede{font-size:14px;color:var(--ink-500);max-width:78ch}
+.crumb-link{display:inline-block;margin-top:12px;font-size:12.5px;color:var(--brand-700);text-decoration:none;font-weight:600}
+.crumb-link:hover{text-decoration:underline}
+
+.sec{margin-top:40px}
+.sec > h2{font-size:17px;letter-spacing:-.01em;display:flex;align-items:baseline;gap:10px;padding-bottom:9px;border-bottom:1px solid var(--line-strong);margin-bottom:6px}
+.sec > h2 .idx{font-family:var(--font-num);font-size:12.5px;color:var(--brand-600);font-weight:700}
+.sec > p{font-size:13px;color:var(--ink-500);margin:10px 0 18px;max-width:80ch}
+.frs{display:flex;flex-wrap:wrap;gap:5px;margin:-8px 0 16px}
+.frs span{font-family:var(--font-num);font-size:11px;color:var(--brand-700);background:var(--brand-50);border:1px solid var(--brand-100);padding:1px 6px;border-radius:var(--r-sm);font-weight:600}
+
+/* 屏幕预览容器 */
+.screen{margin:22px 0 34px}
+.screen-head{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+.screen-head b{font-size:13.5px}
+.screen-head .dev{font-size:11px;font-weight:700;letter-spacing:.04em;padding:2px 8px;border-radius:var(--r-sm);border:1px solid}
+.dev.desktop{color:var(--ink-500);background:#fff;border-color:var(--line-strong)}
+.dev.mobile{color:var(--brand-700);background:var(--brand-50);border-color:var(--brand-100)}
+.screen-head .hint{font-size:12px;color:var(--ink-400);margin-left:auto}
+
+/* 浏览器窗框 */
+.chrome{background:#fff;border:1px solid var(--line-strong);border-radius:10px;overflow:hidden;box-shadow:var(--sh-2)}
+.chrome-bar{height:32px;background:#F2F4F7;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:7px;padding:0 12px}
+.chrome-bar i{width:9px;height:9px;border-radius:50%;background:#D6DBE1;display:block}
+.chrome-bar .url{flex:1;height:19px;background:#fff;border:1px solid var(--line);border-radius:100px;font-size:11px;color:var(--ink-400);display:flex;align-items:center;padding:0 10px;font-family:var(--font-num)}
+.chrome-body{background:var(--surface-sunken)}
+
+/* 手机窗框 */
+.phone-wrap{display:flex;gap:18px;flex-wrap:wrap;align-items:flex-start}
+.phone{width:390px;flex:none;background:#0F1419;border-radius:26px;padding:9px;box-shadow:var(--sh-3)}
+.phone-screen{background:var(--surface-sunken);border-radius:19px;overflow:hidden;height:760px;display:flex;flex-direction:column;position:relative}
+.notch{height:22px;display:flex;align-items:center;justify-content:center;flex:none}
+.notch i{width:70px;height:5px;border-radius:100px;background:#2B3440;display:block}
+.phone-note{flex:1;min-width:240px;font-size:12.5px;color:var(--ink-500);line-height:1.75;background:#fff;border:1px solid var(--line);border-left:3px solid var(--brand-600);border-radius:0 var(--r-md) var(--r-md) 0;padding:14px 16px}
+.phone-note b{color:var(--ink-900)}
+.phone-note ul{margin:8px 0 0;padding-left:16px}
+.phone-note li{margin:4px 0}
+
+/* ================= 应用外壳（真实布局） ================= */
+.app{display:flex;min-height:620px}
+.side{width:var(--nav-w);flex:none;background:#0B3B37;color:#CFE3E0;display:flex;flex-direction:column}
+.side .logo{height:52px;display:flex;align-items:center;gap:9px;padding:0 16px;border-bottom:1px solid rgba(255,255,255,.09)}
+.side .logo .mark{width:22px;height:22px;border-radius:5px;background:#1D8F84;display:grid;place-items:center;color:#fff;font-size:11px;font-weight:800;flex:none}
+.side .logo b{color:#fff;font-size:13.5px;letter-spacing:-.01em}
+.nav{padding:10px 0;flex:1}
+.nav .grp{font-size:10.5px;letter-spacing:.1em;color:#6E8F8B;font-weight:700;padding:10px 16px 5px}
+.nav a{display:flex;align-items:center;gap:9px;height:34px;padding:0 16px;color:#CFE3E0;text-decoration:none;font-size:13px;border-left:2px solid transparent}
+.nav a svg{width:15px;height:15px;flex:none;opacity:.85}
+.nav a:hover{background:rgba(255,255,255,.06);color:#fff}
+.nav a.on{background:rgba(29,143,132,.22);color:#fff;border-left-color:#3FC0B0;font-weight:600}
+.side .foot{padding:10px 16px;border-top:1px solid rgba(255,255,255,.09);font-size:11px;color:#6E8F8B}
+
+.main{flex:1;min-width:0;display:flex;flex-direction:column;background:var(--surface-sunken)}
+.topbar{height:52px;background:#fff;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:12px;padding:0 18px;flex:none}
+.crumb{font-size:12.5px;color:var(--ink-400)}
+.crumb b{color:var(--ink-900);font-weight:600}
+.hamburger{display:none;width:34px;height:34px;border:1px solid var(--line-strong);background:#fff;border-radius:var(--r-md);align-items:center;justify-content:center;cursor:pointer}
+.topbar .spacer{flex:1}
+.who{display:flex;align-items:center;gap:8px;font-size:12.5px}
+.who .av{width:26px;height:26px;border-radius:50%;background:var(--brand-100);color:var(--brand-800);display:grid;place-items:center;font-weight:700;font-size:11px}
+
+.page{padding:18px;flex:1}
+.page-head{display:flex;align-items:flex-start;gap:14px;margin-bottom:14px}
+.page-head h3{font-size:17px;letter-spacing:-.015em}
+.page-head p{font-size:12.5px;color:var(--ink-500);margin-top:3px}
+.page-head .actions{margin-left:auto;display:flex;gap:8px;flex:none}
+
+/* 按钮 */
+.btn{font-size:12.5px;font-weight:600;border-radius:var(--r-md);border:1px solid transparent;height:32px;padding:0 13px;display:inline-flex;align-items:center;justify-content:center;gap:6px;cursor:pointer;white-space:nowrap;transition:background .15s,border-color .15s}
+.btn-primary{background:var(--brand-700);color:#fff;border-color:var(--brand-700)}
+.btn-primary:hover{background:var(--brand-800)}
+.btn-secondary{background:#fff;color:var(--ink-700);border-color:var(--line-strong)}
+.btn-secondary:hover{background:var(--surface-hover)}
+.btn-ghost{background:transparent;color:var(--brand-700)}
+.btn-ghost:hover{background:var(--brand-50)}
+.btn-danger{background:#fff;color:var(--danger);border-color:var(--danger-line)}
+.btn-sm{height:26px;font-size:12px;padding:0 9px}
+.btn[disabled]{background:var(--surface-sunken);color:var(--ink-300);border-color:var(--line);cursor:not-allowed}
+.link{color:var(--brand-700);font-size:12.5px;font-weight:600;text-decoration:none;cursor:pointer}
+.link:hover{text-decoration:underline}
+.link.danger{color:var(--danger)}
+
+/* 筛选条 */
+.filters{background:#fff;border:1px solid var(--line);border-radius:var(--r-lg);padding:12px;display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;margin-bottom:12px}
+.ffield{display:flex;flex-direction:column;gap:4px}
+.ffield label{font-size:11.5px;color:var(--ink-500);font-weight:600}
+.input,.select{font-family:inherit;font-size:12.5px;height:32px;padding:0 9px;border:1px solid var(--line-strong);border-radius:var(--r-md);background:#fff;color:var(--ink-900)}
+.select{appearance:none;background-image:linear-gradient(45deg,transparent 50%,var(--ink-400) 50%),linear-gradient(135deg,var(--ink-400) 50%,transparent 50%);background-position:calc(100% - 14px) 14px,calc(100% - 9px) 14px;background-size:5px 5px,5px 5px;background-repeat:no-repeat;padding-right:26px}
+.input:focus,.select:focus{outline:none;border-color:var(--brand-600);box-shadow:0 0 0 3px var(--brand-100)}
+.input[readonly],.input[disabled]{background:var(--surface-sunken);color:var(--ink-500)}
+.filters .grow{flex:1}
+.filter-mobile{display:none}
+
+/* 卡片 & 表格 */
+.card{background:#fff;border:1px solid var(--line);border-radius:var(--r-lg);overflow:hidden}
+.card-head{padding:12px 14px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:10px}
+.card-head b{font-size:13.5px}
+.card-head .sub{font-size:12px;color:var(--ink-400)}
+.card-head .right{margin-left:auto;display:flex;gap:8px;align-items:center}
+.tbl{width:100%;border-collapse:collapse;font-size:12.5px}
+.tbl th{background:var(--surface-sunken);text-align:left;padding:9px 12px;font-size:11.5px;font-weight:600;color:var(--ink-500);border-bottom:1px solid var(--line);white-space:nowrap;position:relative}
+.tbl td{padding:10px 12px;border-bottom:1px solid var(--line-soft);vertical-align:middle}
+.tbl tbody tr:hover{background:var(--brand-50)}
+.tbl tbody tr:last-child td{border-bottom:0}
+.tbl .r{text-align:right}
+.tbl .c{text-align:center}
+.tbl .mono{font-family:var(--font-num);font-size:12px;font-variant-numeric:tabular-nums}
+.tbl .sub{color:var(--ink-400);font-size:11.5px}
+.tbl .name{font-weight:600;color:var(--ink-900)}
+.ops{display:flex;gap:10px;align-items:center}
+.tfoot{padding:10px 14px;border-top:1px solid var(--line);display:flex;align-items:center;gap:10px;font-size:12.5px;color:var(--ink-500)}
+.tfoot .right{margin-left:auto;display:flex;gap:6px;align-items:center}
+.pager{display:flex;gap:4px}
+.pager span{min-width:26px;height:26px;border:1px solid var(--line-strong);border-radius:var(--r-md);display:grid;place-items:center;font-size:12px;background:#fff;cursor:pointer}
+.pager span.on{background:var(--brand-700);border-color:var(--brand-700);color:#fff;font-weight:600}
+
+/* 徽标 */
+.badge{display:inline-flex;align-items:center;gap:5px;font-size:11.5px;font-weight:600;padding:1px 8px;border-radius:100px;border:1px solid;line-height:1.75;white-space:nowrap}
+.badge::before{content:"";width:5px;height:5px;border-radius:50%;background:currentColor;flex:none}
+.b-draft{color:var(--muted);background:var(--muted-bg);border-color:var(--muted-line)}
+.b-pub{color:var(--info);background:var(--info-bg);border-color:var(--info-line)}
+.b-closed{color:var(--warn);background:var(--warn-bg);border-color:var(--warn-line)}
+.b-pending{color:var(--muted);background:var(--muted-bg);border-color:var(--muted-line)}
+.b-partial{color:var(--warn);background:var(--warn-bg);border-color:var(--warn-line)}
+.b-quoted{color:var(--ok);background:var(--ok-bg);border-color:var(--ok-line)}
+.b-danger{color:var(--danger);background:var(--danger-bg);border-color:var(--danger-line)}
+.b-best{color:var(--best-ink);background:var(--best-bg);border-color:var(--best-line)}
+
+/* 进度 */
+.prog{display:flex;align-items:center;gap:8px;min-width:120px}
+.prog .bar{flex:1;height:5px;border-radius:100px;background:var(--line);overflow:hidden;min-width:52px}
+.prog .bar i{display:block;height:100%;background:var(--brand-600)}
+.prog .bar.warn i{background:var(--warn)}
+.prog .bar.ok i{background:var(--ok)}
+.prog .txt{font-family:var(--font-num);font-size:11.5px;color:var(--ink-500);font-variant-numeric:tabular-nums;flex:none}
+
+/* 提示条 */
+.alert{display:flex;gap:10px;align-items:flex-start;padding:11px 13px;border-radius:var(--r-md);font-size:12.5px;margin-bottom:12px;border:1px solid}
+.alert .i{flex:none;font-weight:800;line-height:1.3}
+.alert-warn{background:var(--warn-bg);border-color:var(--warn-line);color:#7A4208}
+.alert-info{background:var(--info-bg);border-color:var(--info-line);color:#154882}
+.alert-danger{background:var(--danger-bg);border-color:var(--danger-line);color:#8E1B12}
+.alert b{font-weight:700}
+
+/* 交叉表 */
+.matrix-wrap{overflow-x:auto}
+.matrix{border-collapse:separate;border-spacing:0;font-size:12.5px;width:100%;min-width:900px}
+.matrix th,.matrix td{border-bottom:1px solid var(--line-soft);padding:9px 12px;white-space:nowrap}
+.matrix thead th{background:var(--surface-sunken);border-bottom:1px solid var(--line);font-size:11.5px;color:var(--ink-500);font-weight:600;position:sticky;top:0;z-index:2}
+.matrix thead th .v{display:block;font-weight:500;color:var(--ink-300);font-size:10.5px}
+.matrix .sticky-col{position:sticky;left:0;background:#fff;z-index:1;border-right:1px solid var(--line)}
+.matrix thead .sticky-col{background:var(--surface-sunken);z-index:3}
+.matrix tbody tr:hover td{background:var(--brand-50)}
+.matrix .price{font-family:var(--font-num);text-align:right;font-variant-numeric:tabular-nums}
+.matrix .best{background:var(--best-bg)!important;font-weight:700;color:var(--best-ink);box-shadow:inset 3px 0 0 var(--best-line)}
+.matrix .none{color:var(--ink-300);text-align:right}
+.matrix .mat b{display:block;font-weight:600}
+.matrix .mat span{font-size:11px;color:var(--ink-400)}
+
+/* 指标卡 */
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:14px}
+.kpi{background:#fff;border:1px solid var(--line);border-radius:var(--r-lg);padding:14px}
+.kpi .k{font-size:11.5px;color:var(--ink-500);font-weight:600;display:flex;align-items:center;gap:5px}
+.kpi .v{font-family:var(--font-num);font-size:24px;font-weight:700;letter-spacing:-.02em;margin:6px 0 3px;font-variant-numeric:tabular-nums}
+.kpi .v small{font-size:13px;font-weight:600;color:var(--ink-400);margin-left:2px}
+.kpi .d{font-size:11.5px;color:var(--ink-400)}
+.kpi .d.up{color:var(--ok)}
+.kpi .d.down{color:var(--danger)}
+
+.two{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+
+/* 手机端专用 */
+.m-appbar{flex:none;height:48px;background:var(--brand-800);color:#fff;display:flex;align-items:center;gap:10px;padding:0 12px}
+.m-appbar .back{width:28px;height:28px;display:grid;place-items:center;flex:none}
+.m-appbar b{font-size:14px;font-weight:600}
+.m-appbar .spacer{flex:1}
+.m-body{flex:1;overflow:auto;padding:12px;-webkit-overflow-scrolling:touch}
+.m-card{background:#fff;border:1px solid var(--line);border-radius:var(--r-md);padding:12px;margin-bottom:10px}
+.m-card .top{display:flex;align-items:flex-start;gap:8px}
+.m-card .ttl{font-weight:600;font-size:13px;flex:1;line-height:1.4}
+.m-card .sub{font-size:11.5px;color:var(--ink-500);margin-top:5px}
+.m-card .meta{display:flex;align-items:center;gap:8px;margin-top:9px;padding-top:9px;border-top:1px dashed var(--line)}
+.m-card .meta .r{margin-left:auto}
+.m-bottom{flex:none;background:#fff;border-top:1px solid var(--line);padding:9px 12px;display:flex;align-items:center;gap:8px;box-shadow:0 -2px 10px rgba(16,24,40,.06)}
+.m-bottom .cnt{font-size:11.5px;color:var(--ink-500);line-height:1.3}
+.m-bottom .cnt b{display:block;font-family:var(--font-num);font-size:14px;color:var(--ink-900)}
+.m-bottom .grow{flex:1}
+.dl{display:grid;grid-template-columns:auto 1fr;gap:6px 10px;font-size:12px}
+.dl dt{color:var(--ink-400)}
+.dl dd{font-weight:600;text-align:right}
+.chipbar{display:flex;gap:6px;flex-wrap:wrap}
+.chip{font-size:11px;font-weight:600;background:var(--brand-50);color:var(--brand-800);border:1px solid var(--brand-100);padding:3px 9px;border-radius:100px}
+.chip.x{background:var(--surface-sunken);color:var(--ink-500);border-color:var(--line)}
+.chip .del{color:var(--ink-400);margin-left:4px;cursor:pointer}
+
+@media(max-width:1240px){
+  .kpis{grid-template-columns:repeat(2,1fr)}
+  .two{grid-template-columns:1fr}
+}
+@media(max-width:900px){
+  .side{display:none}
+  .hamburger{display:flex}
+  .filters{display:none}
+  .filter-mobile{display:inline-flex}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="doc-head">
+    <div class="eyebrow">设计稿 02 / 我方侧</div>
+    <h1>报价单 · 报价进度 · 统计报表</h1>
+    <p class="lede">对应 PRD「采购管理」下的两个菜单（报价单、报价单统计报表）。以桌面为主要终端，手机端提供卡片化只读视图与关键操作。</p>
+    <a class="crumb-link" href="01-design-system.html">← 返回设计系统与页面索引</a>
+  </header>
+
+  <!-- ==================== 1. 报价单列表 ==================== -->
+  <section class="sec">
+    <h2><span class="idx">02-1</span>报价单列表</h2>
+    <p>采购员进入系统后的默认落地页。三种状态（草稿/已发布/已截止）在同一张表里，操作列随状态变化；「已报价 x/y 家」直接进进度条，让采购员一眼看出哪张单还没催。</p>
+    <div class="frs"><span>FR-RFQ-01</span><span>FR-RFQ-02</span><span>FR-RFQ-03</span><span>FR-RFQ-04</span><span>FR-RWD-10</span></div>
+
+    <div class="screen">
+      <div class="screen-head"><b>桌面 1440px</b><span class="dev desktop">DESKTOP</span><span class="hint">左侧导航常驻 · 表格全列 · 筛选行内平铺</span></div>
+      <div class="chrome">
+        <div class="chrome-bar"><i></i><i></i><i></i><div class="url">http://192.168.1.20/purchase/rfq</div></div>
+        <div class="chrome-body">
+          <div class="app">
+            <!-- 导航 -->
+            <aside class="side">
+              <div class="logo"><span class="mark">询</span><b>询价报价系统</b></div>
+              <nav class="nav">
+                <div class="grp">采购管理</div>
+                <a class="on" href="#"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 4h12M2 8h12M2 12h8"/></svg>报价单</a>
+                <a href="#"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 13V6M6 13V3M10 13V8M14 13V5"/></svg>报价单统计报表</a>
+                <div class="grp">系统管理</div>
+                <a href="#"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="5.5" r="2.5"/><path d="M2.5 13.5c0-2.5 2.5-4 5.5-4s5.5 1.5 5.5 4"/></svg>账号管理</a>
+              </nav>
+              <div class="foot">v1.1 · 内网部署</div>
+            </aside>
+
+            <div class="main">
+              <div class="topbar">
+                <button class="hamburger"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#2B3440" stroke-width="1.6"><path d="M2 4h12M2 8h12M2 12h12"/></svg></button>
+                <div class="crumb">采购管理 / <b>报价单</b></div>
+                <div class="spacer"></div>
+                <div class="who"><span class="av">王</span>王采购 · 采购员</div>
+              </div>
+
+              <div class="page">
+                <div class="page-head">
+                  <div>
+                    <h3>报价单</h3>
+                    <p>共 12 张单据 · 3 张进行中 · 4 张已截止</p>
+                  </div>
+                  <div class="actions">
+                    <button class="btn btn-secondary">导出</button>
+                    <button class="btn btn-primary">+ 新建报价单</button>
+                  </div>
+                </div>
+
+                <div class="filters">
+                  <div class="ffield"><label>状态</label><select class="select"><option>全部</option><option>草稿</option><option>已发布</option><option>已截止</option></select></div>
+                  <div class="ffield"><label>关键字</label><input class="input" placeholder="单号 / 名称 / 项目" style="width:200px"></div>
+                  <div class="ffield"><label>截止时间</label><input class="input" type="date" value="2026-10-01" style="width:150px"></div>
+                  <div class="ffield"><label>&nbsp;</label><input class="input" type="date" value="2026-10-31" style="width:150px"></div>
+                  <div class="grow"></div>
+                  <button class="btn btn-secondary">重置</button>
+                  <button class="btn btn-primary">查询</button>
+                </div>
+
+                <div class="card">
+                  <table class="tbl">
+                    <thead>
+                      <tr>
+                        <th style="width:150px">询价单号</th>
+                        <th>单据名称 / 项目</th>
+                        <th style="width:150px">报价截止时间</th>
+                        <th style="width:96px">状态</th>
+                        <th style="width:132px">明细行数</th>
+                        <th style="width:170px">已报价供货商</th>
+                        <th style="width:110px">创建人</th>
+                        <th style="width:150px">操作</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr>
+                        <td class="mono">RFQ202610120001</td>
+                        <td><span class="name">办公用品-10月补货询价</span><div class="sub">办公用品</div></td>
+                        <td><span class="mono">2026-10-15 18:00</span><div class="sub" style="color:var(--warn)">剩余 2 天 4 小时</div></td>
+                        <td><span class="badge b-pub">已发布</span></td>
+                        <td class="mono">8 行</td>
+                        <td>
+                          <div class="prog"><div class="bar warn"><i style="width:37.5%"></i></div><span class="txt">3/8 家</span></div>
+                        </td>
+                        <td>王采购</td>
+                        <td><div class="ops"><a class="link">查看报价</a><a class="link">截止</a></div></td>
+                      </tr>
+                      <tr>
+                        <td class="mono">RFQ202610100002</td>
+                        <td><span class="name">车间耗材-Q4备料询价</span><div class="sub">生产耗材</div></td>
+                        <td><span class="mono">2026-10-12 12:00</span><div class="sub">已截止</div></td>
+                        <td><span class="badge b-closed">已截止</span></td>
+                        <td class="mono">43 行</td>
+                        <td>
+                          <div class="prog"><div class="bar ok"><i style="width:100%"></i></div><span class="txt">5/5 家</span></div>
+                        </td>
+                        <td>李主管</td>
+                        <td><div class="ops"><a class="link">统计报表</a><a class="link">导出</a></div></td>
+                      </tr>
+                      <tr>
+                        <td class="mono">RFQ202610090003</td>
+                        <td><span class="name">包装材料-纸箱询价</span><div class="sub">包材</div></td>
+                        <td><span class="mono">2026-10-14 17:30</span><div class="sub" style="color:var(--danger)">剩余 6 小时</div></td>
+                        <td><span class="badge b-pub">已发布</span></td>
+                        <td class="mono">16 行</td>
+                        <td>
+                          <div class="prog"><div class="bar"><i style="width:60%"></i></div><span class="txt">3/5 家</span></div>
+                        </td>
+                        <td>王采购</td>
+                        <td><div class="ops"><a class="link">查看报价</a><a class="link">截止</a></div></td>
+                      </tr>
+                      <tr>
+                        <td class="mono">RFQ202610080004</td>
+                        <td><span class="name">劳保用品-询价</span><div class="sub">劳保</div></td>
+                        <td class="mono sub">—（草稿未设）</td>
+                        <td><span class="badge b-draft">草稿</span></td>
+                        <td class="mono">12 行</td>
+                        <td><span class="sub">未发布</span></td>
+                        <td>王采购</td>
+                        <td><div class="ops"><a class="link">编辑</a><a class="link">发布</a><a class="link danger">删除</a></div></td>
+                      </tr>
+                      <tr>
+                        <td class="mono">RFQ202610050005</td>
+                        <td><span class="name">五金配件-常规补货</span><div class="sub">五金</div></td>
+                        <td><span class="mono">2026-10-08 18:00</span><div class="sub">已截止</div></td>
+                        <td><span class="badge b-closed">已截止</span></td>
+                        <td class="mono">27 行</td>
+                        <td>
+                          <div class="prog"><div class="bar warn"><i style="width:67%"></i></div><span class="txt">4/6 家</span></div>
+                        </td>
+                        <td>李主管</td>
+                        <td><div class="ops"><a class="link">统计报表</a><a class="link">导出</a></div></td>
+                      </tr>
+                    </tbody>
+                  </table>
+                  <div class="tfoot">
+                    <span>共 12 条 · 每页 20 条</span>
+                    <div class="right pager"><span class="on">1</span><span>2</span><span>›</span></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="screen">
+      <div class="screen-head"><b>手机 390px</b><span class="dev mobile">MOBILE</span><span class="hint">表格转卡片 · 操作收进「更多」· 筛选收进弹层</span></div>
+      <div class="phone-wrap">
+        <div class="phone">
+          <div class="phone-screen">
+            <div class="notch"><i></i></div>
+            <div class="m-appbar">
+              <span class="back"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#fff" stroke-width="1.8"><path d="M10 3L5 8l5 5"/></svg></span>
+              <b>报价单</b><span class="spacer"></span>
+              <span class="back"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#fff" stroke-width="1.6"><path d="M2 3h12M4 8h8M6 13h4"/></svg></span>
+            </div>
+            <div class="m-body">
+              <div style="display:flex;gap:8px;margin-bottom:10px">
+                <input class="input" placeholder="单号 / 名称 / 项目" style="flex:1;height:36px">
+                <button class="btn btn-secondary" style="height:36px">
+                  <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M2 3h12M4 8h8M6 13h4"/></svg>筛选
+                </button>
+              </div>
+
+              <div class="m-card">
+                <div class="top"><span class="ttl">办公用品-10月补货询价</span><span class="badge b-pub">已发布</span></div>
+                <div class="sub"><span class="mono">RFQ202610120001</span> · 办公用品 · 8 行</div>
+                <div class="meta">
+                  <span style="font-size:11.5px;color:var(--warn);font-weight:600">剩余 2 天 4 小时</span>
+                  <span class="r"></span>
+                  <span class="num" style="font-size:11.5px;color:var(--ink-500)">已报价 3/8 家</span>
+                </div>
+                <div class="prog" style="margin-top:8px"><div class="bar warn"><i style="width:37.5%"></i></div></div>
+                <div style="display:flex;gap:14px;margin-top:10px;padding-top:9px;border-top:1px dashed var(--line)">
+                  <a class="link">查看报价</a><a class="link">截止</a>
+                  <a class="link" style="margin-left:auto;color:var(--ink-400)">更多 ▾</a>
+                </div>
+              </div>
+
+              <div class="m-card">
+                <div class="top"><span class="ttl">包装材料-纸箱询价</span><span class="badge b-pub">已发布</span></div>
+                <div class="sub"><span class="mono">RFQ202610090003</span> · 包材 · 16 行</div>
+                <div class="meta">
+                  <span style="font-size:11.5px;color:var(--danger);font-weight:700">剩余 6 小时</span>
+                  <span class="r"></span>
+                  <span class="num" style="font-size:11.5px;color:var(--ink-500)">已报价 3/5 家</span>
+                </div>
+                <div class="prog" style="margin-top:8px"><div class="bar"><i style="width:60%"></i></div></div>
+                <div style="display:flex;gap:14px;margin-top:10px;padding-top:9px;border-top:1px dashed var(--line)">
+                  <a class="link">查看报价</a><a class="link">截止</a>
+                  <a class="link" style="margin-left:auto;color:var(--ink-400)">更多 ▾</a>
+                </div>
+              </div>
+
+              <div class="m-card">
+                <div class="top"><span class="ttl">劳保用品-询价</span><span class="badge b-draft">草稿</span></div>
+                <div class="sub"><span class="mono">RFQ202610080004</span> · 劳保 · 12 行</div>
+                <div class="meta">
+                  <span style="font-size:11.5px;color:var(--ink-400)">未设置截止时间</span>
+                  <span class="r"></span>
+                  <span class="num" style="font-size:11.5px;color:var(--ink-400)">未发布</span>
+                </div>
+                <div style="display:flex;gap:14px;margin-top:10px;padding-top:9px;border-top:1px dashed var(--line)">
+                  <a class="link">编辑</a><a class="link">发布</a>
+                  <a class="link danger">删除</a>
+                </div>
+              </div>
+
+              <div class="m-card" style="border-style:dashed;color:var(--ink-400);text-align:center;font-size:12px">— 已加载全部 12 条 —</div>
+            </div>
+            <div class="m-bottom">
+              <div class="cnt">进行中<b>3 张</b></div>
+              <div class="grow"></div>
+              <button class="btn btn-primary" style="height:36px;flex:1">+ 新建报价单</button>
+            </div>
+          </div>
+        </div>
+        <div class="phone-note">
+          <b>手机端设计说明</b>
+          <ul>
+            <li>每张卡片保留 <b>4~5 个关键字段</b>：单据名称、状态、单号+项目+行数、截止剩余时间、已报价进度。创建人等次要信息移入详情。</li>
+            <li>「查看报价 / 截止」直接外露（催办与截止是高频动作）；导出、编辑等低频动作收进「更多」。</li>
+            <li>倒计时在 &lt;24h 时转为<b>危险色加粗</b>，与 PRD 的 FR-RWD-25 一致。</li>
+            <li>筛选收进弹层；底部固定「新建报价单」，避免长列表来回滚动。</li>
+            <li>草稿卡片不显示无意义的"未设置截止时间"占位，改为灰色说明文字。</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ==================== 2. 新建询价单 ==================== -->
+  <section class="sec">
+    <h2><span class="idx">02-2</span>新建 / 编辑询价单（含 Excel 导入）</h2>
+    <p>我方录入明细的地方。桌面端用可编辑表格 + 线上粘贴；手机端保留表单与行级编辑，但<b>隐藏导入与批量粘贴</b>并引导到电脑操作（FR-RWD-12）。</p>
+    <div class="frs"><span>FR-RFQ-07</span><span>FR-RFQ-10</span><span>FR-IMP-01</span><span>FR-IMP-02</span><span>FR-RWD-12</span></div>
+
+    <div class="screen">
+      <div class="screen-head"><b>桌面 1440px</b><span class="dev desktop">DESKTOP</span><span class="hint">三列表头 · 可编辑明细表格 · 底部固定发布区</span></div>
+      <div class="chrome">
+        <div class="chrome-bar"><i></i><i></i><i></i><div class="url">http://192.168.1.20/purchase/rfq/new</div></div>
+        <div class="chrome-body">
+          <div class="app">
+            <aside class="side">
+              <div class="logo"><span class="mark">询</span><b>询价报价系统</b></div>
+              <nav class="nav">
+                <div class="grp">采购管理</div>
+                <a class="on" href="#"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 4h12M2 8h12M2 12h8"/></svg>报价单</a>
+                <a href="#"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 13V6M6 13V3M10 13V8M14 13V5"/></svg>报价单统计报表</a>
+                <div class="grp">系统管理</div>
+                <a href="#"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="5.5" r="2.5"/><path d="M2.5 13.5c0-2.5 2.5-4 5.5-4s5.5 1.5 5.5 4"/></svg>账号管理</a>
+              </nav>
+              <div class="foot">v1.1 · 内网部署</div>
+            </aside>
+            <div class="main">
+              <div class="topbar">
+                <div class="crumb">采购管理 / 报价单 / <b>新建报价单</b></div>
+                <div class="spacer"></div>
+                <div class="who"><span class="av">王</span>王采购 · 采购员</div>
+              </div>
+              <div class="page">
+                <div class="page-head">
+                  <div><h3>新建报价单</h3><p>草稿可随时保存；发布后明细将锁定，供货商开始填报</p></div>
+                  <div class="actions">
+                    <button class="btn btn-secondary">保存草稿</button>
+                    <button class="btn btn-primary">发布并通知供货商</button>
+                  </div>
+                </div>
+
+                <div class="card" style="padding:14px;margin-bottom:14px">
+                  <div style="display:grid;grid-template-columns:2fr 1fr 1fr;gap:14px">
+                    <div class="ffield"><label>单据名称 <span style="color:var(--danger)">*</span></label><input class="input" value="办公用品-10月补货询价" style="height:34px;font-size:13px"></div>
+                    <div class="ffield"><label>项目 <span style="color:var(--danger)">*</span></label><input class="input" value="办公用品" style="height:34px;font-size:13px"></div>
+                    <div class="ffield"><label>报价截止时间 <span style="color:var(--danger)">*</span></label><input class="input" type="date" value="2026-10-15" style="height:34px;font-size:13px"></div>
+                  </div>
+                  <div style="display:grid;grid-template-columns:2fr 2fr;gap:14px;margin-top:14px">
+                    <div class="ffield">
+                      <label>受邀供货商 <span style="color:var(--danger)">*</span> <span style="color:var(--ink-400);font-weight:400">已选 5 家</span></label>
+                      <div class="chipbar" style="padding-top:2px">
+                        <span class="chip">恒信文具<span class="del">×</span></span>
+                        <span class="chip">鑫达办公<span class="del">×</span></span>
+                        <span class="chip">汇通商贸<span class="del">×</span></span>
+                        <span class="chip">万隆物资<span class="del">×</span></span>
+                        <span class="chip">立诚供应链<span class="del">×</span></span>
+                        <span class="chip x">+ 选择供货商</span>
+                      </div>
+                    </div>
+                    <div class="ffield"><label>对供货商可见的备注</label><input class="input" placeholder="如：付款方式、交货地点、是否含运费" style="height:34px;font-size:13px"></div>
+                  </div>
+                </div>
+
+                <div class="card">
+                  <div class="card-head">
+                    <b>询价明细</b><span class="sub">共 8 行 · 序号自动生成</span>
+                    <div class="right">
+                      <button class="btn btn-sm btn-secondary">下载导入模板</button>
+                      <button class="btn btn-sm btn-secondary">Excel 导入</button>
+                      <button class="btn btn-sm btn-secondary">+ 添加行</button>
+                    </div>
+                  </div>
+                  <div class="alert alert-info" style="margin:12px 14px 0">
+                    <span class="i">i</span>
+                    <div>可直接从 Excel <b>复制多行</b>粘贴到表格；粘贴时按列顺序自动对齐。单位不在字典内时会提示是否新增。</div>
+                  </div>
+                  <table class="tbl">
+                    <thead>
+                      <tr>
+                        <th style="width:46px" class="c">序号</th>
+                        <th style="width:170px">材料名称 <span style="color:var(--danger)">*</span></th>
+                        <th style="width:170px">规格型号</th>
+                        <th style="width:96px">单位 <span style="color:var(--danger)">*</span></th>
+                        <th style="width:130px">项目</th>
+                        <th style="width:110px">采购数量 <span style="color:var(--danger)">*</span></th>
+                        <th>行备注</th>
+                        <th style="width:60px" class="c">操作</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr>
+                        <td class="c mono">1</td>
+                        <td><input class="input" value="订书机" style="height:30px;width:100%"></td>
+                        <td><input class="input" value="得力，小" style="height:30px;width:100%"></td>
+                        <td><input class="input" value="个" style="height:30px;width:100%"></td>
+                        <td><input class="input" value="办公用品" style="height:30px;width:100%"></td>
+                        <td><input class="input num" value="40" style="height:30px;width:100%;text-align:right"></td>
+                        <td><input class="input" placeholder="—" style="height:30px;width:100%"></td>
+                        <td class="c"><a class="link danger">删</a></td>
+                      </tr>
+                      <tr>
+                        <td class="c mono">2</td>
+                        <td><input class="input" value="A4 复印纸" style="height:30px;width:100%"></td>
+                        <td><input class="input" value="70g / 500张" style="height:30px;width:100%"></td>
+                        <td><input class="input" value="包" style="height:30px;width:100%"></td>
+                        <td><input class="input" value="办公用品" style="height:30px;width:100%"></td>
+                        <td><input class="input num" value="200" style="height:30px;width:100%;text-align:right"></td>
+                        <td><input class="input" placeholder="—" style="height:30px;width:100%"></td>
+                        <td class="c"><a class="link danger">删</a></td>
+                      </tr>
+                      <tr>
+                        <td class="c mono">3</td>
+                        <td><input class="input" value="签字笔" style="height:30px;width:100%"></td>
+                        <td><input class="input" value="0.5mm 黑色" style="height:30px;width:100%"></td>
+                        <td><input class="input" value="支" style="height:30px;width:100%"></td>
+                        <td><input class="input" value="办公用品" style="height:30px;width:100%"></td>
+                        <td><input class="input num" value="500" style="height:30px;width:100%;text-align:right"></td>
+                        <td><input class="input" value="可替代品牌请在报价备注说明" style="height:30px;width:100%"></td>
+                        <td class="c"><a class="link danger">删</a></td>
+                      </tr>
+                      <tr>
+                        <td class="c mono">4</td>
+                        <td><input class="input" value="" placeholder="必填" style="height:30px;width:100%;border-color:var(--danger-line);background:var(--danger-bg)"></td>
+                        <td><input class="input" style="height:30px;width:100%"></td>
+                        <td><input class="input" style="height:30px;width:100%"></td>
+                        <td><input class="input" style="height:30px;width:100%"></td>
+                        <td><input class="input" style="height:30px;width:100%"></td>
+                        <td><input class="input" style="height:30px;width:100%"></td>
+                        <td class="c"><a class="link danger">删</a></td>
+                      </tr>
+                      <tr>
+                        <td class="c mono">5</td>
+                        <td><input class="input" value="档案盒" style="height:30px;width:100%"></td>
+                        <td><input class="input" value="A4 / 55mm" style="height:30px;width:100%"></td>
+                        <td><input class="input" value="个" style="height:30px;width:100%"></td>
+                        <td><input class="input" value="办公用品" style="height:30px;width:100%"></td>
+                        <td><input class="input num" value="120" style="height:30px;width:100%;text-align:right"></td>
+                        <td><input class="input" placeholder="—" style="height:30px;width:100%"></td>
+                        <td class="c"><a class="link danger">删</a></td>
+                      </tr>
+                    </tbody>
+                  </table>
+                  <div class="tfoot">
+                    <span style="color:var(--danger);font-weight:600">第 4 行「材料名称」未填写，发布前需补齐</span>
+                    <div class="right"><span>已填 5 / 8 行</span></div>
+                  </div>
+                </div>
+
+                <div class="card" style="margin-top:14px;padding:13px 14px;display:flex;align-items:center;gap:12px;background:var(--brand-50);border-color:var(--brand-100)">
+                  <div style="font-size:12.5px;color:var(--brand-800)">
+                    <b>发布后会发生什么：</b>为 5 家受邀供货商各生成一份独立报价单；供货商只能看到自己的那一份与本说明；明细行将锁定不可修改。
+                  </div>
+                  <div style="margin-left:auto;display:flex;gap:8px;flex:none">
+                    <button class="btn btn-secondary">保存草稿</button>
+                    <button class="btn btn-primary">发布</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="screen">
+      <div class="screen-head"><b>手机 390px</b><span class="dev mobile">MOBILE</span><span class="hint">单列表单 · 明细卡片 · 导入入口隐藏并引导 PC</span></div>
+      <div class="phone-wrap">
+        <div class="phone">
+          <div class="phone-screen">
+            <div class="notch"><i></i></div>
+            <div class="m-appbar">
+              <span class="back"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#fff" stroke-width="1.8"><path d="M10 3L5 8l5 5"/></svg></span>
+              <b>新建报价单</b>
+            </div>
+            <div class="m-body">
+              <div class="alert alert-warn">
+                <span class="i">!</span>
+                <div><b>建议在电脑上创建询价单。</b>手机端支持填写与保存，但 <b>Excel 导入、批量粘贴</b> 等功能仅桌面端提供。</div>
+              </div>
+
+              <div class="m-card">
+                <div class="ffield" style="margin-bottom:12px">
+                  <label style="font-size:12px;font-weight:600">单据名称 <span style="color:var(--danger)">*</span></label>
+                  <input class="input" value="办公用品-10月补货询价" style="height:38px;margin-top:4px">
+                </div>
+                <div class="ffield" style="margin-bottom:12px">
+                  <label style="font-size:12px;font-weight:600">项目 <span style="color:var(--danger)">*</span></label>
+                  <input class="input" value="办公用品" style="height:38px;margin-top:4px">
+                </div>
+                <div class="ffield" style="margin-bottom:12px">
+                  <label style="font-size:12px;font-weight:600">报价截止时间 <span style="color:var(--danger)">*</span></label>
+                  <input class="input" type="date" value="2026-10-15" style="height:38px;margin-top:4px">
+                </div>
+                <div class="ffield">
+                  <label style="font-size:12px;font-weight:600">受邀供货商 <span style="color:var(--danger)">*</span></label>
+                  <div class="chipbar" style="padding-top:6px">
+                    <span class="chip">恒信文具 ×</span><span class="chip">鑫达办公 ×</span>
+                    <span class="chip">汇通商贸 ×</span><span class="chip x">+ 选择</span>
+                  </div>
+                </div>
+              </div>
+
+              <div style="display:flex;align-items:center;margin:14px 0 8px">
+                <b style="font-size:13px">询价明细</b>
+                <span style="font-size:11.5px;color:var(--ink-400);margin-left:8px">8 行</span>
+                <a class="link" style="margin-left:auto">+ 添加行</a>
+              </div>
+
+              <div class="m-card" style="padding:10px">
+                <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+                  <span class="mono" style="font-size:11px;color:var(--ink-400)">01</span>
+                  <b style="font-size:13px">订书机</b>
+                  <a class="link danger" style="margin-left:auto;font-size:11.5px">删除</a>
+                </div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+                  <input class="input" value="得力，小" style="height:34px;font-size:12.5px">
+                  <input class="input" value="个" style="height:34px;font-size:12.5px">
+                </div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px">
+                  <input class="input" value="办公用品" style="height:34px;font-size:12.5px">
+                  <input class="input num" value="40" style="height:34px;font-size:12.5px;text-align:right">
+                </div>
+              </div>
+
+              <div class="m-card" style="padding:10px">
+                <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+                  <span class="mono" style="font-size:11px;color:var(--ink-400)">02</span>
+                  <b style="font-size:13px">A4 复印纸</b>
+                  <a class="link danger" style="margin-left:auto;font-size:11.5px">删除</a>
+                </div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+                  <input class="input" value="70g / 500张" style="height:34px;font-size:12.5px">
+                  <input class="input" value="包" style="height:34px;font-size:12.5px">
+                </div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px">
+                  <input class="input" value="办公用品" style="height:34px;font-size:12.5px">
+                  <input class="input num" value="200" style="height:34px;font-size:12.5px;text-align:right">
+                </div>
+              </div>
+
+              <div class="m-card" style="padding:10px;border-color:var(--danger-line);background:var(--danger-bg)">
+                <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+                  <span class="mono" style="font-size:11px;color:var(--danger)">04</span>
+                  <b style="font-size:13px;color:var(--danger)">材料名称未填写</b>
+                </div>
+                <input class="input" placeholder="必填" style="height:34px;font-size:12.5px;border-color:var(--danger-line)">
+              </div>
+            </div>
+            <div class="m-bottom">
+              <button class="btn btn-secondary" style="height:38px">保存草稿</button>
+              <div class="grow"></div>
+              <button class="btn btn-primary" style="height:38px;min-width:120px">发布</button>
+            </div>
+          </div>
+        </div>
+        <div class="phone-note">
+          <b>手机端取舍</b>
+          <ul>
+            <li>顶部黄条<b>主动告知能力边界</b>，而不是隐藏入口后让用户找不到（对应 FR-RWD-12/14）。</li>
+            <li>明细行改为「编号 + 名称 + 删除」的卡片，四个字段 2×2 排列，避免 6 列表格在窄屏挤压。</li>
+            <li>校验失败的行<b>整卡变红</b>并直接显示"材料名称未填写"，不需要用户逐行查找红框。</li>
+            <li>底部固定「保存草稿 / 发布」，与列表页的吸底操作保持一致的肌肉记忆。</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ==================== 3. 报价进度 ==================== -->
+  <section class="sec">
+    <h2><span class="idx">02-3</span>报价进度（催办）</h2>
+    <p>本案<b>不做任何消息通知</b>，所以这个页面承担了全部催办职能：未报价的供货商必须被醒目地推到采购员眼前，并提供一键复制名单，方便线下微信/电话催办。</p>
+    <div class="frs"><span>FR-RFQ-13</span><span>FR-RFQ-14</span><span>FR-RWD-11</span><span>Q10</span></div>
+
+    <div class="screen">
+      <div class="screen-head"><b>桌面 1440px</b><span class="dev desktop">DESKTOP</span><span class="hint">未报价置顶提示 · 明细分派状态表</span></div>
+      <div class="chrome">
+        <div class="chrome-bar"><i></i><i></i><i></i><div class="url">http://192.168.1.20/purchase/rfq/RFQ202610120001</div></div>
+        <div class="chrome-body">
+          <div class="app">
+            <aside class="side">
+              <div class="logo"><span class="mark">询</span><b>询价报价系统</b></div>
+              <nav class="nav">
+                <div class="grp">采购管理</div>
+                <a class="on" href="#"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 4h12M2 8h12M2 12h8"/></svg>报价单</a>
+                <a href="#"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 13V6M6 13V3M10 13V8M14 13V5"/></svg>报价单统计报表</a>
+                <div class="grp">系统管理</div>
+                <a href="#"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="5.5" r="2.5"/><path d="M2.5 13.5c0-2.5 2.5-4 5.5-4s5.5 1.5 5.5 4"/></svg>账号管理</a>
+              </nav>
+              <div class="foot">v1.1 · 内网部署</div>
+            </aside>
+            <div class="main">
+              <div class="topbar">
+                <div class="crumb">采购管理 / 报价单 / <b>RFQ202610120001</b></div>
+                <div class="spacer"></div>
+                <div class="who"><span class="av">王</span>王采购 · 采购员</div>
+              </div>
+              <div class="page">
+                <div class="page-head">
+                  <div>
+                    <h3>办公用品-10月补货询价 <span class="badge b-pub" style="vertical-align:middle">已发布</span></h3>
+                    <p><span class="mono">RFQ202610120001</span> · 办公用品 · 8 行明细 · 截止 2026-10-15 18:00 <span style="color:var(--warn);font-weight:600">（剩余 2 天 4 小时）</span></p>
+                  </div>
+                  <div class="actions">
+                    <button class="btn btn-secondary">导出报价结果</button>
+                    <button class="btn btn-secondary">查看统计报表</button>
+                    <button class="btn btn-primary">提前截止</button>
+                  </div>
+                </div>
+
+                <div class="alert alert-warn">
+                  <span class="i">!</span>
+                  <div>
+                    <b>还有 5 家供货商未报价。</b>系统不发送通知，请线下催办。
+                    <a class="link" style="margin-left:6px">复制未报价名单</a>
+                    <div style="margin-top:6px;color:#7A4208">恒信文具（报价中 3/8 行）、鑫达办公、万隆物资、立诚供应链、宏发贸易</div>
+                  </div>
+                </div>
+
+                <div class="card">
+                  <div class="card-head"><b>分派与报价状态</b><span class="sub">5 家受邀</span><div class="right"><span class="sub">按截止剩余时间排序</span></div></div>
+                  <table class="tbl">
+                    <thead>
+                      <tr>
+                        <th>供货商</th><th style="width:150px">联系人 / 电话</th><th style="width:130px">报价状态</th>
+                        <th style="width:180px">填写进度</th><th style="width:160px">最后保存时间</th><th style="width:130px">操作</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr>
+                        <td><span class="name">恒信文具</span></td>
+                        <td>张经理<div class="sub mono">138****6621</div></td>
+                        <td><span class="badge b-partial">报价中</span></td>
+                        <td><div class="prog"><div class="bar warn"><i style="width:37.5%"></i></div><span class="txt">3/8 行</span></div></td>
+                        <td class="mono">10-13 09:24</td>
+                        <td><a class="link">查看报价</a></td>
+                      </tr>
+                      <tr>
+                        <td><span class="name">鑫达办公</span></td>
+                        <td>刘女士<div class="sub mono">139****3308</div></td>
+                        <td><span class="badge b-quoted">已报价</span></td>
+                        <td><div class="prog"><div class="bar ok"><i style="width:100%"></i></div><span class="txt">8/8 行</span></div></td>
+                        <td class="mono">10-13 08:51</td>
+                        <td><a class="link">查看报价</a></td>
+                      </tr>
+                      <tr>
+                        <td><span class="name">汇通商贸</span></td>
+                        <td>陈先生<div class="sub mono">137****9912</div></td>
+                        <td><span class="badge b-quoted">已报价</span></td>
+                        <td><div class="prog"><div class="bar ok"><i style="width:100%"></i></div><span class="txt">8/8 行</span></div></td>
+                        <td class="mono">10-12 17:03</td>
+                        <td><a class="link">查看报价</a></td>
+                      </tr>
+                      <tr>
+                        <td><span class="name">万隆物资</span></td>
+                        <td>赵经理<div class="sub mono">135****4417</div></td>
+                        <td><span class="badge b-danger">未报价</span></td>
+                        <td><span class="sub">未打开填报页</span></td>
+                        <td class="sub">—</td>
+                        <td><a class="link">复制联系方式</a></td>
+                      </tr>
+                      <tr>
+                        <td><span class="name">立诚供应链</span></td>
+                        <td>孙女士<div class="sub mono">136****2233</div></td>
+                        <td><span class="badge b-danger">未报价</span></td>
+                        <td><span class="sub">已打开未保存</span></td>
+                        <td class="sub">—</td>
+                        <td><a class="link">复制联系方式</a></td>
+                      </tr>
+                    </tbody>
+                  </table>
+                  <div class="tfoot">
+                    <span>已报价 <b class="mono">2</b> 家 · 报价中 <b class="mono">1</b> 家 · 未报价 <b class="mono">2</b> 家</span>
+                    <div class="right"><span>已报价家数按"提交报价"计</span></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="screen">
+      <div class="screen-head"><b>手机 390px</b><span class="dev mobile">MOBILE</span><span class="hint">催办主场景：完整可用 · 一键复制名单</span></div>
+      <div class="phone-wrap">
+        <div class="phone">
+          <div class="phone-screen">
+            <div class="notch"><i></i></div>
+            <div class="m-appbar">
+              <span class="back"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#fff" stroke-width="1.8"><path d="M10 3L5 8l5 5"/></svg></span>
+              <b>报价进度</b>
+            </div>
+            <div class="m-body">
+              <div class="m-card" style="padding:12px">
+                <b style="font-size:14px">办公用品-10月补货询价</b>
+                <div class="sub" style="margin-top:4px"><span class="mono">RFQ202610120001</span></div>
+                <dl class="dl" style="margin-top:10px">
+                  <dt>状态</dt><dd><span class="badge b-pub">已发布</span></dd>
+                  <dt>截止时间</dt><dd class="mono">10-15 18:00</dd>
+                  <dt>剩余</dt><dd style="color:var(--warn)">2 天 4 小时</dd>
+                  <dt>受邀 / 已报价</dt><dd class="mono">5 家 / 2 家</dd>
+                </dl>
+              </div>
+
+              <div class="alert alert-warn" style="margin-bottom:10px">
+                <span class="i">!</span>
+                <div><b>3 家未报价</b>，系统不发送通知，请线下催办。</div>
+              </div>
+              <button class="btn btn-secondary" style="width:100%;height:38px;margin-bottom:12px">复制未报价名单与联系方式</button>
+
+              <div style="font-size:11.5px;color:var(--ink-400);font-weight:600;margin:0 0 6px 2px">未报价（3）</div>
+              <div class="m-card" style="padding:11px">
+                <div style="display:flex;align-items:center;gap:8px">
+                  <b style="font-size:13px">万隆物资</b><span class="badge b-danger">未报价</span>
+                </div>
+                <div class="sub">赵经理 · <span class="mono">135****4417</span> · 未打开填报页</div>
+                <div style="display:flex;gap:14px;margin-top:9px;padding-top:8px;border-top:1px dashed var(--line)">
+                  <a class="link">复制联系方式</a><a class="link">查看明细</a>
+                </div>
+              </div>
+              <div class="m-card" style="padding:11px">
+                <div style="display:flex;align-items:center;gap:8px">
+                  <b style="font-size:13px">立诚供应链</b><span class="badge b-danger">未报价</span>
+                </div>
+                <div class="sub">孙女士 · <span class="mono">136****2233</span> · 已打开未保存</div>
+                <div style="display:flex;gap:14px;margin-top:9px;padding-top:8px;border-top:1px dashed var(--line)">
+                  <a class="link">复制联系方式</a><a class="link">查看明细</a>
+                </div>
+              </div>
+
+              <div style="font-size:11.5px;color:var(--ink-400);font-weight:600;margin:14px 0 6px 2px">已报价 / 报价中（2）</div>
+              <div class="m-card" style="padding:11px">
+                <div style="display:flex;align-items:center;gap:8px">
+                  <b style="font-size:13px">恒信文具</b><span class="badge b-partial">报价中</span>
+                </div>
+                <div class="sub">张经理 · 最后保存 10-13 09:24</div>
+                <div class="prog" style="margin-top:9px"><div class="bar warn"><i style="width:37.5%"></i></div><span class="txt">3/8 行</span></div>
+              </div>
+              <div class="m-card" style="padding:11px">
+                <div style="display:flex;align-items:center;gap:8px">
+                  <b style="font-size:13px">鑫达办公</b><span class="badge b-quoted">已报价</span>
+                </div>
+                <div class="sub">刘女士 · 提交于 10-13 08:51</div>
+                <div class="prog" style="margin-top:9px"><div class="bar ok"><i style="width:100%"></i></div><span class="txt">8/8 行</span></div>
+              </div>
+            </div>
+            <div class="m-bottom">
+              <div class="cnt">未报价<b>3 家</b></div>
+              <div class="grow"></div>
+              <button class="btn btn-secondary" style="height:38px">导出</button>
+              <button class="btn btn-primary" style="height:38px">提前截止</button>
+            </div>
+          </div>
+        </div>
+        <div class="phone-note">
+          <b>为什么这个页面手机端必须做好</b>
+          <ul>
+            <li>采购员催办往往发生在<b>下班路上或会议间隙</b>，手机是唯一在手设备。这个页面在 PRD 中被明确划为"手机端完整可用"。</li>
+            <li>未报价名单<b>分组置顶</b>并按状态细分（未打开 / 已打开未保存），让催办话术有区分。</li>
+            <li>「复制未报价名单与联系方式」一次复制全部，直接粘到微信群里，替代本期不做的通知功能（Q10 定稿）。</li>
+            <li>底部栏显示未报价家数，滚动时始终可见。</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ==================== 4. 统计报表 ==================== -->
+  <section class="sec">
+    <h2><span class="idx">02-4</span>报价单统计报表</h2>
+    <p>系统的决策依据页。视图 A 是交叉比价表（一行物料 × 多家供货商），最低价高亮；视图 B 是汇总指标。手机端把视图 B 做成指标卡，视图 A 保留横向滚动并冻结首列。</p>
+    <div class="frs"><span>FR-RPT-01</span><span>FR-RPT-02</span><span>FR-RPT-03</span><span>FR-RPT-04</span><span>FR-RWD-13</span></div>
+
+    <div class="screen">
+      <div class="screen-head"><b>桌面 1440px · 视图 A 比价明细</b><span class="dev desktop">DESKTOP</span><span class="hint">最低价高亮 · 价差率 · 报价家数</span></div>
+      <div class="chrome">
+        <div class="chrome-bar"><i></i><i></i><i></i><div class="url">http://192.168.1.20/purchase/report?rfq=RFQ202610100002</div></div>
+        <div class="chrome-body">
+          <div class="app">
+            <aside class="side">
+              <div class="logo"><span class="mark">询</span><b>询价报价系统</b></div>
+              <nav class="nav">
+                <div class="grp">采购管理</div>
+                <a href="#"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 4h12M2 8h12M2 12h8"/></svg>报价单</a>
+                <a class="on" href="#"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 13V6M6 13V3M10 13V8M14 13V5"/></svg>报价单统计报表</a>
+                <div class="grp">系统管理</div>
+                <a href="#"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="5.5" r="2.5"/><path d="M2.5 13.5c0-2.5 2.5-4 5.5-4s5.5 1.5 5.5 4"/></svg>账号管理</a>
+              </nav>
+              <div class="foot">v1.1 · 内网部署</div>
+            </aside>
+            <div class="main">
+              <div class="topbar">
+                <div class="crumb">采购管理 / <b>报价单统计报表</b></div>
+                <div class="spacer"></div>
+                <div class="who"><span class="av">李</span>李主管 · 管理员</div>
+              </div>
+              <div class="page">
+                <div class="page-head">
+                  <div><h3>报价单统计报表</h3><p>数据实时计算 · 供货商保存报价后刷新即可见</p></div>
+                  <div class="actions">
+                    <button class="btn btn-secondary">导出比价明细</button>
+                    <button class="btn btn-secondary">导出汇总</button>
+                  </div>
+                </div>
+
+                <div class="filters">
+                  <div class="ffield"><label>报价单</label><select class="select" style="min-width:230px"><option>RFQ202610100002 · 车间耗材-Q4备料询价</option><option>全部单据</option></select></div>
+                  <div class="ffield"><label>项目</label><input class="input" placeholder="全部" style="width:120px"></div>
+                  <div class="ffield"><label>供货商</label><select class="select" style="min-width:120px"><option>全部（5）</option></select></div>
+                  <div class="grow"></div>
+                  <label style="display:flex;align-items:center;gap:6px;font-size:12.5px;color:var(--ink-500);padding-bottom:8px"><input type="checkbox">只显示未报价</label>
+                  <button class="btn btn-secondary">查询</button>
+                </div>
+
+                <div class="card">
+                  <div class="card-head">
+                    <b>比价明细</b><span class="sub">8 行 · 5 家供货商 · 已报价 5/5</span>
+                    <div class="right"><span class="sub" style="color:var(--best-ink);background:var(--best-bg);border:1px solid var(--best-line);padding:2px 8px;border-radius:var(--r-sm)">琥珀底 = 该行最低价</span></div>
+                  </div>
+                  <div class="matrix-wrap">
+                    <table class="matrix">
+                      <thead>
+                        <tr>
+                          <th class="sticky-col" style="min-width:210px">物料 / 需求</th>
+                          <th style="text-align:right">鑫达办公<span class="v">含税单价</span></th>
+                          <th style="text-align:right">汇通商贸<span class="v">含税单价</span></th>
+                          <th style="text-align:right">恒信文具<span class="v">含税单价</span></th>
+                          <th style="text-align:right">立诚供应链<span class="v">含税单价</span></th>
+                          <th style="text-align:right">万隆物资<span class="v">含税单价</span></th>
+                          <th style="text-align:right;background:var(--surface-sunken)">最低价<span class="v">含税</span></th>
+                          <th style="width:92px">最低价方</th>
+                          <th style="text-align:right">均价</th>
+                          <th style="text-align:right">价差率</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr>
+                          <td class="sticky-col mat"><b>订书机</b><span>得力，小 · 个 · 40</span></td>
+                          <td class="price">128.00</td>
+                          <td class="price best">113.00</td>
+                          <td class="price">118.50</td>
+                          <td class="price">125.00</td>
+                          <td class="price">131.00</td>
+                          <td class="price" style="background:var(--best-bg);font-weight:700;color:var(--best-ink)">113.00</td>
+                          <td>汇通商贸</td>
+                          <td class="price" style="color:var(--ink-500)">123.10</td>
+                          <td class="price">15.9%</td>
+                        </tr>
+                        <tr>
+                          <td class="sticky-col mat"><b>A4 复印纸</b><span>70g / 500张 · 包 · 200</span></td>
+                          <td class="price best">21.50</td>
+                          <td class="price">22.80</td>
+                          <td class="price">23.00</td>
+                          <td class="price">24.50</td>
+                          <td class="price">23.60</td>
+                          <td class="price" style="background:var(--best-bg);font-weight:700;color:var(--best-ink)">21.50</td>
+                          <td>鑫达办公</td>
+                          <td class="price" style="color:var(--ink-500)">23.08</td>
+                          <td class="price">14.0%</td>
+                        </tr>
+                        <tr>
+                          <td class="sticky-col mat"><b>签字笔</b><span>0.5mm 黑色 · 支 · 500</span></td>
+                          <td class="price">2.10</td>
+                          <td class="price">2.05</td>
+                          <td class="price best">1.88</td>
+                          <td class="price">2.20</td>
+                          <td class="price">2.15</td>
+                          <td class="price" style="background:var(--best-bg);font-weight:700;color:var(--best-ink)">1.88</td>
+                          <td>恒信文具</td>
+                          <td class="price" style="color:var(--ink-500)">2.08</td>
+                          <td class="price">17.0%</td>
+                        </tr>
+                        <tr>
+                          <td class="sticky-col mat"><b>档案盒</b><span>A4 / 55mm · 个 · 120</span></td>
+                          <td class="price">6.80</td>
+                          <td class="price">6.50</td>
+                          <td class="price">6.90</td>
+                          <td class="price best">6.20</td>
+                          <td class="price none">—</td>
+                          <td class="price" style="background:var(--best-bg);font-weight:700;color:var(--best-ink)">6.20</td>
+                          <td>立诚供应链</td>
+                          <td class="price" style="color:var(--ink-500)">6.60</td>
+                          <td class="price">11.3%</td>
+                        </tr>
+                        <tr>
+                          <td class="sticky-col mat"><b>白板笔</b><span>可擦 · 支 · 300</span></td>
+                          <td class="price">3.40</td>
+                          <td class="price best">3.10</td>
+                          <td class="price">3.25</td>
+                          <td class="price">3.50</td>
+                          <td class="price">3.45</td>
+                          <td class="price" style="background:var(--best-bg);font-weight:700;color:var(--best-ink)">3.10</td>
+                          <td>汇通商贸</td>
+                          <td class="price" style="color:var(--ink-500)">3.34</td>
+                          <td class="price">12.9%</td>
+                        </tr>
+                        <tr>
+                          <td class="sticky-col mat"><b>文件夹</b><span>A4 双强力 · 个 · 150</span></td>
+                          <td class="price">4.60</td>
+                          <td class="price">4.45</td>
+                          <td class="price">4.70</td>
+                          <td class="price">4.55</td>
+                          <td class="price best">4.30</td>
+                          <td class="price" style="background:var(--best-bg);font-weight:700;color:var(--best-ink)">4.30</td>
+                          <td>万隆物资</td>
+                          <td class="price" style="color:var(--ink-500)">4.52</td>
+                          <td class="price">9.3%</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                  <div class="tfoot">
+                    <span>报价总金额（按最低价计）<b class="mono">¥6,847.00</b> · 较最高价方案节省 <b class="mono" style="color:var(--ok)">¥892.50（11.5%）</b></span>
+                    <div class="right"><span>共 8 行，此处展示前 6 行</span></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="screen">
+      <div class="screen-head"><b>桌面 1440px · 视图 B 汇总统计</b><span class="dev desktop">DESKTOP</span><span class="hint">指标卡 + 按供货商 / 按项目汇总</span></div>
+      <div class="chrome">
+        <div class="chrome-bar"><i></i><i></i><i></i><div class="url">http://192.168.1.20/purchase/report?view=summary</div></div>
+        <div class="chrome-body">
+          <div class="app">
+            <aside class="side">
+              <div class="logo"><span class="mark">询</span><b>询价报价系统</b></div>
+              <nav class="nav">
+                <div class="grp">采购管理</div>
+                <a href="#"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 4h12M2 8h12M2 12h8"/></svg>报价单</a>
+                <a class="on" href="#"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 13V6M6 13V3M10 13V8M14 13V5"/></svg>报价单统计报表</a>
+                <div class="grp">系统管理</div>
+                <a href="#"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="5.5" r="2.5"/><path d="M2.5 13.5c0-2.5 2.5-4 5.5-4s5.5 1.5 5.5 4"/></svg>账号管理</a>
+              </nav>
+              <div class="foot">v1.1 · 内网部署</div>
+            </aside>
+            <div class="main">
+              <div class="topbar">
+                <div class="crumb">采购管理 / <b>报价单统计报表</b> / 汇总</div>
+                <div class="spacer"></div>
+                <div class="who"><span class="av">李</span>李主管 · 管理员</div>
+              </div>
+              <div class="page">
+                <div class="page-head">
+                  <div><h3>汇总统计 <span style="font-size:12.5px;color:var(--ink-400);font-weight:400">最近 30 天</span></h3><p>2026-09-13 ~ 2026-10-13 · 覆盖 12 张询价单</p></div>
+                  <div class="actions">
+                    <button class="btn btn-secondary">导出汇总 .xlsx</button>
+                  </div>
+                </div>
+
+                <div class="kpis">
+                  <div class="kpi"><div class="k">询价单数</div><div class="v">12<small>张</small></div><div class="d up">较上期 +2 张</div></div>
+                  <div class="kpi"><div class="k">明细行数</div><div class="v">148<small>行</small></div><div class="d">覆盖 6 个项目</div></div>
+                  <div class="kpi"><div class="k">供货商响应率</div><div class="v">83.3<small>%</small></div><div class="d up">已报价 45 / 受邀 54 家次</div></div>
+                  <div class="kpi"><div class="k">报价总金额</div><div class="v">¥86,420<small>.00</small></div><div class="d">按各行最低价计</div></div>
+                </div>
+
+                <div class="two">
+                  <div class="card">
+                    <div class="card-head"><b>按供货商汇总</b><span class="sub">5 家</span></div>
+                    <table class="tbl">
+                      <thead><tr><th>供货商</th><th class="r" style="width:80px">受邀</th><th class="r" style="width:80px">已报价</th><th class="r" style="width:90px">响应率</th><th class="r" style="width:110px">报价金额</th><th class="r" style="width:80px">平均交期</th></tr></thead>
+                      <tbody>
+                        <tr><td><span class="name">鑫达办公</span></td><td class="r mono">12</td><td class="r mono">12</td><td class="r"><span class="badge b-quoted">100%</span></td><td class="r mono">¥21,340.00</td><td class="r mono">3 天</td></tr>
+                        <tr><td><span class="name">汇通商贸</span></td><td class="r mono">12</td><td class="r mono">11</td><td class="r"><span class="badge b-quoted">92%</span></td><td class="r mono">¥20,180.00</td><td class="r mono">4 天</td></tr>
+                        <tr><td><span class="name">恒信文具</span></td><td class="r mono">11</td><td class="r mono">9</td><td class="r"><span class="badge b-partial">82%</span></td><td class="r mono">¥18,660.00</td><td class="r mono">5 天</td></tr>
+                        <tr><td><span class="name">立诚供应链</span></td><td class="r mono">10</td><td class="r mono">8</td><td class="r"><span class="badge b-partial">80%</span></td><td class="r mono">¥15,290.00</td><td class="r mono">7 天</td></tr>
+                        <tr><td><span class="name">万隆物资</span></td><td class="r mono">9</td><td class="r mono">5</td><td class="r"><span class="badge b-danger">56%</span></td><td class="r mono">¥10,950.00</td><td class="r mono">6 天</td></tr>
+                      </tbody>
+                    </table>
+                  </div>
+
+                  <div class="card">
+                    <div class="card-head"><b>按项目汇总</b><span class="sub">6 个项目</span></div>
+                    <table class="tbl">
+                      <thead><tr><th>项目</th><th class="r" style="width:80px">询价单</th><th class="r" style="width:80px">明细行</th><th class="r" style="width:100px">覆盖率</th><th class="r" style="width:110px">最低价合计</th></tr></thead>
+                      <tbody>
+                        <tr><td><span class="name">生产耗材</span></td><td class="r mono">3</td><td class="r mono">62</td><td class="r"><span class="badge b-quoted">100%</span></td><td class="r mono">¥41,280.00</td></tr>
+                        <tr><td><span class="name">办公用品</span></td><td class="r mono">3</td><td class="r mono">34</td><td class="r"><span class="badge b-quoted">100%</span></td><td class="r mono">¥12,760.00</td></tr>
+                        <tr><td><span class="name">包装材料</span></td><td class="r mono">2</td><td class="r mono">26</td><td class="r"><span class="badge b-partial">88%</span></td><td class="r mono">¥16,410.00</td></tr>
+                        <tr><td><span class="name">五金配件</span></td><td class="r mono">2</td><td class="r mono">18</td><td class="r"><span class="badge b-partial">75%</span></td><td class="r mono">¥9,830.00</td></tr>
+                        <tr><td><span class="name">劳保用品</span></td><td class="r mono">1</td><td class="r mono">6</td><td class="r"><span class="badge b-danger">50%</span></td><td class="r mono">¥4,120.00</td></tr>
+                        <tr><td><span class="name">清洁用品</span></td><td class="r mono">1</td><td class="r mono">2</td><td class="r"><span class="badge b-quoted">100%</span></td><td class="r mono">¥2,020.00</td></tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                <div class="alert alert-info" style="margin-top:14px">
+                  <span class="i">i</span>
+                  <div><b>数据口径说明：</b>响应率 = 已报价家次 ÷ 受邀家次；报价总金额按每行<b>最低含税单价 × 采购数量</b>累计；平均交期仅统计已填「交货周期」的报价行。</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="screen">
+      <div class="screen-head"><b>手机 390px</b><span class="dev mobile">MOBILE</span><span class="hint">视图 B 指标卡单列 · 视图 A 横向滚动首列冻结</span></div>
+      <div class="phone-wrap">
+        <div class="phone">
+          <div class="phone-screen">
+            <div class="notch"><i></i></div>
+            <div class="m-appbar">
+              <span class="back"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#fff" stroke-width="1.8"><path d="M10 3L5 8l5 5"/></svg></span>
+              <b>统计报表</b><span class="spacer"></span>
+              <span class="back"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#fff" stroke-width="1.6"><path d="M8 2v8m0 0L5 7m3 3l3-3M2 13h12"/></svg></span>
+            </div>
+            <div class="m-body">
+              <div style="display:flex;gap:6px;margin-bottom:12px">
+                <span class="chip" style="background:#fff;border-color:var(--brand-600);color:var(--brand-800)">汇总统计</span>
+                <span class="chip x">比价明细</span>
+              </div>
+
+              <div class="m-card" style="background:var(--brand-800);border-color:var(--brand-800);color:#fff">
+                <div style="font-size:11.5px;opacity:.8">报价总金额（按各行最低价）</div>
+                <div class="num" style="font-size:26px;font-weight:700;margin-top:4px">¥86,420.00</div>
+                <div style="font-size:11.5px;opacity:.75;margin-top:2px">最近 30 天 · 12 张询价单</div>
+              </div>
+
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px">
+                <div class="m-card" style="margin:0;padding:11px">
+                  <div style="font-size:11.5px;color:var(--ink-500)">询价单数</div>
+                  <div class="num" style="font-size:20px;font-weight:700;margin-top:3px">12 <span style="font-size:12px;color:var(--ink-400)">张</span></div>
+                </div>
+                <div class="m-card" style="margin:0;padding:11px">
+                  <div style="font-size:11.5px;color:var(--ink-500)">明细行数</div>
+                  <div class="num" style="font-size:20px;font-weight:700;margin-top:3px">148 <span style="font-size:12px;color:var(--ink-400)">行</span></div>
+                </div>
+                <div class="m-card" style="margin:0;padding:11px">
+                  <div style="font-size:11.5px;color:var(--ink-500)">响应率</div>
+                  <div class="num" style="font-size:20px;font-weight:700;margin-top:3px;color:var(--ok)">83.3%</div>
+                  <div style="font-size:11px;color:var(--ink-400);margin-top:2px">45/54 家次</div>
+                </div>
+                <div class="m-card" style="margin:0;padding:11px">
+                  <div style="font-size:11.5px;color:var(--ink-500)">供货商</div>
+                  <div class="num" style="font-size:20px;font-weight:700;margin-top:3px">5 <span style="font-size:12px;color:var(--ink-400)">家</span></div>
+                </div>
+              </div>
+
+              <div style="font-size:11.5px;color:var(--ink-400);font-weight:600;margin:0 0 6px 2px">按供货商</div>
+              <div class="m-card" style="padding:11px">
+                <div style="display:flex;align-items:center"><b style="font-size:13px">鑫达办公</b><span class="badge b-quoted" style="margin-left:6px">100%</span></div>
+                <dl class="dl" style="margin-top:8px">
+                  <dt>受邀 / 已报价</dt><dd class="mono">12 / 12</dd>
+                  <dt>报价金额</dt><dd class="mono">¥21,340.00</dd>
+                  <dt>平均交期</dt><dd class="mono">3 天</dd>
+                </dl>
+              </div>
+              <div class="m-card" style="padding:11px">
+                <div style="display:flex;align-items:center"><b style="font-size:13px">恒信文具</b><span class="badge b-partial" style="margin-left:6px">82%</span></div>
+                <dl class="dl" style="margin-top:8px">
+                  <dt>受邀 / 已报价</dt><dd class="mono">11 / 9</dd>
+                  <dt>报价金额</dt><dd class="mono">¥18,660.00</dd>
+                  <dt>平均交期</dt><dd class="mono">5 天</dd>
+                </dl>
+              </div>
+              <div class="m-card" style="padding:11px">
+                <div style="display:flex;align-items:center"><b style="font-size:13px">万隆物资</b><span class="badge b-danger" style="margin-left:6px">56%</span></div>
+                <dl class="dl" style="margin-top:8px">
+                  <dt>受邀 / 已报价</dt><dd class="mono">9 / 5</dd>
+                  <dt>报价金额</dt><dd class="mono">¥10,950.00</dd>
+                  <dt>平均交期</dt><dd class="mono">6 天</dd>
+                </dl>
+              </div>
+            </div>
+            <div class="m-bottom">
+              <button class="btn btn-secondary" style="height:36px;flex:1">导出汇总</button>
+              <button class="btn btn-primary" style="height:36px;flex:1">查看比价明细</button>
+            </div>
+          </div>
+        </div>
+        <div class="phone-note">
+          <b>报表在手机上的处理原则</b>
+          <ul>
+            <li><b>先给结论，再给明细</b>：顶部深色卡放"报价总金额"，四个指标卡两列排布，采购员在路上只需看这一屏。</li>
+            <li>视图 A 交叉表在手机上<b>保留横向滚动并冻结"物料"首列</b>（PRD 明确要求），不做列折叠 —— 比价的本质就是横向对比，折叠后失去意义。</li>
+            <li>按供货商明细从表格改为「卡片 + 定义列表」，三项指标垂直排列，比横向 6 列表格可读。</li>
+            <li>导出按钮保留但降级为次要按钮；在微信内打开时提示"请用系统浏览器下载"。</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <footer style="margin-top:48px;padding-top:16px;border-top:1px solid var(--line-strong);font-size:12px;color:var(--ink-400)">
+    设计稿 02 / 我方侧 · 配套 <b>doc/PRD-询价报价系统.md</b>（FR 编号可回查）· <a href="01-design-system.html" style="color:var(--brand-700)">返回索引</a>
+  </footer>
+</div>
+</body>
+</html>

@@ -1,0 +1,943 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>询价报价系统 · 供货商侧（手机报价填报）</title>
+<style>
+:root{
+  --brand-900:#0B3B37;--brand-800:#0E4F4A;--brand-700:#12615A;--brand-600:#16776E;
+  --brand-100:#E4F2F0;--brand-50:#F1F8F7;
+  --ink-900:#0F1419;--ink-700:#2B3440;--ink-500:#5A6672;--ink-400:#7C8794;--ink-300:#A6AFB9;
+  --line-strong:#CBD2DA;--line:#E4E7EC;--line-soft:#EFF1F4;
+  --surface:#FFF;--surface-sunken:#F6F7F9;--surface-hover:#F2F4F7;
+  --ok:#0F7B4F;--ok-bg:#E7F5EE;--ok-line:#BFE3D0;
+  --warn:#A8590B;--warn-bg:#FFF3E2;--warn-line:#F2D6A8;
+  --danger:#B42318;--danger-bg:#FEECE9;--danger-line:#F5C6BF;
+  --info:#1B5FA8;--info-bg:#E9F1FB;--info-line:#C2D8F2;
+  --muted:#5A6672;--muted-bg:#EFF1F4;--muted-line:#DDE1E6;
+  --best-bg:#FFFBEB;--best-line:#F5D77A;--best-ink:#8A5A00;
+  --font:"Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+  --font-num:"SF Mono","JetBrains Mono",Consolas,monospace;
+  --r-sm:3px;--r-md:5px;--r-lg:8px;
+  --sh-1:0 1px 2px rgba(16,24,40,.06);--sh-2:0 4px 12px rgba(16,24,40,.08);--sh-3:0 12px 32px rgba(16,24,40,.16);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:var(--font);background:#E9EBEF;color:var(--ink-900);font-size:13px;line-height:1.5;-webkit-font-smoothing:antialiased}
+.num{font-family:var(--font-num);font-variant-numeric:tabular-nums;letter-spacing:-.01em}
+button{font-family:inherit}
+
+.wrap{max-width:1420px;margin:0 auto;padding:28px 24px 72px}
+.doc-head{border-bottom:2px solid var(--ink-900);padding-bottom:16px;margin-bottom:8px}
+.eyebrow{font-size:11.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--brand-700);font-weight:700}
+h1{font-size:26px;letter-spacing:-.02em;margin:8px 0 8px}
+.lede{font-size:14px;color:var(--ink-500);max-width:78ch}
+.crumb-link{display:inline-block;margin-top:12px;font-size:12.5px;color:var(--brand-700);text-decoration:none;font-weight:600}
+.crumb-link:hover{text-decoration:underline}
+
+.sec{margin-top:40px}
+.sec > h2{font-size:17px;letter-spacing:-.01em;display:flex;align-items:baseline;gap:10px;padding-bottom:9px;border-bottom:1px solid var(--line-strong);margin-bottom:6px}
+.sec > h2 .idx{font-family:var(--font-num);font-size:12.5px;color:var(--brand-600);font-weight:700}
+.sec > p{font-size:13px;color:var(--ink-500);margin:10px 0 16px;max-width:82ch}
+.frs{display:flex;flex-wrap:wrap;gap:5px;margin:-6px 0 16px}
+.frs span{font-family:var(--font-num);font-size:11px;color:var(--brand-700);background:var(--brand-50);border:1px solid var(--brand-100);padding:1px 6px;border-radius:var(--r-sm);font-weight:600}
+
+/* 手机框 */
+.phone-row{display:flex;gap:20px;flex-wrap:wrap;align-items:flex-start}
+.phone{width:390px;flex:none}
+.phone .cap{font-size:12px;font-weight:700;color:var(--ink-700);margin-bottom:7px;display:flex;align-items:center;gap:7px}
+.phone .cap span{font-size:10.5px;font-weight:700;color:var(--brand-700);background:var(--brand-50);border:1px solid var(--brand-100);padding:1px 6px;border-radius:var(--r-sm)}
+.frame{background:#0F1419;border-radius:26px;padding:9px;box-shadow:var(--sh-3)}
+.screen{background:var(--surface-sunken);border-radius:19px;overflow:hidden;height:780px;display:flex;flex-direction:column}
+.notch{height:20px;display:flex;align-items:center;justify-content:center;flex:none}
+.notch i{width:66px;height:5px;border-radius:100px;background:#2B3440;display:block}
+.appbar{flex:none;height:46px;background:var(--brand-800);color:#fff;display:flex;align-items:center;gap:8px;padding:0 12px}
+.appbar .ic{width:26px;height:26px;display:grid;place-items:center;flex:none}
+.appbar b{font-size:14px;font-weight:600;letter-spacing:-.01em}
+.appbar .spacer{flex:1}
+.appbar .badge-lite{font-size:10.5px;font-weight:700;background:rgba(255,255,255,.16);padding:2px 7px;border-radius:100px}
+.body{flex:1;overflow:auto;padding:12px}
+.bottombar{flex:none;background:#fff;border-top:1px solid var(--line);padding:9px 12px 11px;box-shadow:0 -2px 12px rgba(16,24,40,.07)}
+.bottombar .row{display:flex;align-items:center;gap:9px}
+.bottombar .cnt{font-size:10.5px;color:var(--ink-500);line-height:1.25;flex:none}
+.bottombar .cnt b{display:block;font-family:var(--font-num);font-size:15px;color:var(--ink-900);letter-spacing:-.02em}
+.bottombar .grow{flex:1}
+.home-ind{height:16px;display:flex;align-items:center;justify-content:center;flex:none}
+.home-ind i{width:110px;height:4px;border-radius:100px;background:#C9CFD6;display:block}
+
+/* 按钮 */
+.btn{font-size:13px;font-weight:600;border-radius:var(--r-md);border:1px solid transparent;height:38px;padding:0 14px;display:inline-flex;align-items:center;justify-content:center;gap:6px;cursor:pointer;white-space:nowrap}
+.btn-primary{background:var(--brand-700);color:#fff;border-color:var(--brand-700)}
+.btn-primary:hover{background:var(--brand-800)}
+.btn-secondary{background:#fff;color:var(--ink-700);border-color:var(--line-strong)}
+.btn-ghost{background:transparent;color:var(--brand-700)}
+.btn-lg{height:44px;font-size:14px}
+.btn-block{width:100%}
+.btn[disabled]{background:var(--surface-sunken);color:var(--ink-300);border-color:var(--line);cursor:not-allowed}
+.btn-warn{background:var(--warn);color:#fff;border-color:var(--warn)}
+.link{color:var(--brand-700);font-size:12.5px;font-weight:600;text-decoration:none;cursor:pointer}
+.link.muted{color:var(--ink-400);font-weight:500}
+
+/* 卡片 */
+.card{background:#fff;border:1px solid var(--line);border-radius:var(--r-md);padding:12px;margin-bottom:10px}
+.card.flat{padding:0;overflow:hidden}
+
+/* 徽标 */
+.badge{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:600;padding:1px 8px;border-radius:100px;border:1px solid;line-height:1.75;white-space:nowrap}
+.badge::before{content:"";width:5px;height:5px;border-radius:50%;background:currentColor;flex:none}
+.b-pending{color:var(--muted);background:var(--muted-bg);border-color:var(--muted-line)}
+.b-partial{color:var(--warn);background:var(--warn-bg);border-color:var(--warn-line)}
+.b-quoted{color:var(--ok);background:var(--ok-bg);border-color:var(--ok-line)}
+.b-danger{color:var(--danger);background:var(--danger-bg);border-color:var(--danger-line)}
+.b-info{color:var(--info);background:var(--info-bg);border-color:var(--info-line)}
+.b-best{color:var(--best-ink);background:var(--best-bg);border-color:var(--best-line)}
+
+/* 列表卡片 */
+.row-card{background:#fff;border:1px solid var(--line);border-radius:var(--r-md);padding:12px;margin-bottom:9px}
+.row-card .t{font-size:13.5px;font-weight:600;line-height:1.4}
+.row-card .s{font-size:11.5px;color:var(--ink-500);margin-top:4px}
+.row-card .m{display:flex;align-items:center;gap:8px;margin-top:9px;padding-top:9px;border-top:1px dashed var(--line)}
+.row-card .m .r{margin-left:auto}
+.prog{display:flex;align-items:center;gap:8px;margin-top:8px}
+.prog .bar{flex:1;height:5px;border-radius:100px;background:var(--line);overflow:hidden}
+.prog .bar i{display:block;height:100%;background:var(--brand-600)}
+.prog .bar.warn i{background:var(--warn)}
+.prog .bar.ok i{background:var(--ok)}
+.prog .txt{font-family:var(--font-num);font-size:11px;color:var(--ink-500);flex:none}
+
+/* 物料卡片（核心） */
+.mat{background:#fff;border:1px solid var(--line);border-radius:var(--r-md);margin-bottom:10px;overflow:hidden;position:relative}
+.mat.filled{border-color:var(--ok-line)}
+.mat.error{border-color:var(--danger-line);background:#FFFCFB}
+.mat-head{padding:11px 12px 9px}
+.mat-head .l1{display:flex;align-items:flex-start;gap:8px}
+.mat-head .seq{font-family:var(--font-num);font-size:11px;color:var(--ink-400);font-weight:700;padding-top:2px;flex:none;min-width:17px}
+.mat-head .nm{font-size:13.5px;font-weight:600;line-height:1.35;flex:1}
+.mat-head .flag{font-size:10px;font-weight:700;padding:1px 7px;border-radius:100px;flex:none;border:1px solid}
+.flag.ok{color:var(--ok);background:var(--ok-bg);border-color:var(--ok-line)}
+.flag.no{color:var(--ink-400);background:var(--surface-sunken);border-color:var(--line)}
+.mat-head .l2{font-size:11.5px;color:var(--ink-500);margin:4px 0 0 25px;display:flex;gap:8px;flex-wrap:wrap}
+.mat-head .l2 em{font-style:normal;color:var(--ink-400)}
+.mat-price{padding:0 12px 11px}
+.mat-price label{font-size:11.5px;font-weight:600;color:var(--ink-700);display:flex;align-items:center;gap:5px;margin-bottom:5px}
+.mat-price label .req{color:var(--danger)}
+.inp-wrap{display:flex;align-items:center;border:1px solid var(--line-strong);border-radius:var(--r-md);background:#fff;overflow:hidden;transition:border-color .15s,box-shadow .15s}
+.inp-wrap.focus{border-color:var(--brand-600);box-shadow:0 0 0 3px var(--brand-100)}
+.inp-wrap .cur{font-size:14px;color:var(--ink-400);padding:0 9px 0 11px;font-weight:600;flex:none}
+.inp-wrap input{flex:1;border:0;outline:none;height:44px;font-family:var(--font-num);font-size:18px;font-weight:600;font-variant-numeric:tabular-nums;color:var(--ink-900);background:transparent;letter-spacing:-.02em;min-width:0}
+.inp-wrap .unit{font-size:12px;color:var(--ink-400);padding:0 11px;flex:none;border-left:1px solid var(--line-soft);height:44px;display:flex;align-items:center}
+.mat.filled .inp-wrap{border-color:var(--ok-line);background:#FBFEFC}
+.more-tog{display:flex;align-items:center;gap:6px;padding:9px 12px;border-top:1px dashed var(--line);font-size:12px;color:var(--brand-700);font-weight:600;cursor:pointer;background:#FCFDFD}
+.more-tog .c{margin-left:auto;font-size:11px;color:var(--ink-400);font-weight:500}
+.more-body{border-top:1px solid var(--line-soft);padding:11px 12px;background:#FCFDFD}
+.frow{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+.frow:last-child{margin-bottom:0}
+.frow > label{font-size:12px;color:var(--ink-700);font-weight:600;width:82px;flex:none}
+.frow .ctl{flex:1;min-width:0}
+.inp{font-family:inherit;font-size:14px;height:40px;padding:0 10px;border:1px solid var(--line-strong);border-radius:var(--r-md);background:#fff;color:var(--ink-900);width:100%}
+.inp:focus{outline:none;border-color:var(--brand-600);box-shadow:0 0 0 3px var(--brand-100)}
+.inp.num{font-family:var(--font-num);font-variant-numeric:tabular-nums}
+select.inp{appearance:none;background-image:linear-gradient(45deg,transparent 50%,var(--ink-400) 50%),linear-gradient(135deg,var(--ink-400) 50%,transparent 50%);background-position:calc(100% - 16px) 17px,calc(100% - 11px) 17px;background-size:5px 5px,5px 5px;background-repeat:no-repeat;padding-right:28px}
+.hint{font-size:11px;color:var(--ink-400);margin-top:4px}
+.switch{width:44px;height:25px;border-radius:100px;background:var(--brand-600);position:relative;flex:none;cursor:pointer}
+.switch i{position:absolute;top:2.5px;right:2.5px;width:20px;height:20px;border-radius:50%;background:#fff;box-shadow:var(--sh-1)}
+.switch.off{background:var(--line-strong)}
+.switch.off i{right:auto;left:2.5px}
+.attach{display:flex;gap:9px;align-items:center}
+.attach .ph{width:46px;height:46px;border-radius:var(--r-md);border:1px solid var(--brand-100);background:var(--brand-50);display:grid;place-items:center;color:var(--brand-700);flex:none}
+.attach .ph.alb{background:var(--surface-sunken);border-color:var(--line);color:var(--ink-400)}
+.thumb{width:46px;height:46px;border-radius:var(--r-md);background:linear-gradient(135deg,#DCE6E4,#C7D6D3);flex:none;position:relative;display:grid;place-items:center;font-size:9.5px;color:#4A6663;font-weight:700}
+.thumb .x{position:absolute;top:-5px;right:-5px;width:17px;height:17px;border-radius:50%;background:var(--ink-700);color:#fff;font-size:10px;display:grid;place-items:center;border:2px solid #fff}
+
+/* 分段导航 */
+.seg{display:flex;align-items:center;gap:8px;background:#fff;border:1px solid var(--line);border-radius:var(--r-md);padding:8px 10px;margin-bottom:10px}
+.seg .c{font-size:11.5px;color:var(--ink-500)}
+.seg .c b{font-family:var(--font-num);color:var(--ink-900)}
+.seg .r{margin-left:auto;display:flex;gap:6px}
+.seg .r span{width:30px;height:30px;border:1px solid var(--line-strong);border-radius:var(--r-md);display:grid;place-items:center;background:#fff;cursor:pointer}
+.seg .r span.off{color:var(--ink-300);background:var(--surface-sunken)}
+
+/* 提示条 */
+.alert{display:flex;gap:9px;align-items:flex-start;padding:11px 12px;border-radius:var(--r-md);font-size:12.5px;margin-bottom:10px;border:1px solid;line-height:1.5}
+.alert .i{flex:none;font-weight:800;line-height:1.35}
+.alert-warn{background:var(--warn-bg);border-color:var(--warn-line);color:#7A4208}
+.alert-info{background:var(--info-bg);border-color:var(--info-line);color:#154882}
+.alert-danger{background:var(--danger-bg);border-color:var(--danger-line);color:#8E1B12}
+.alert-ok{background:var(--ok-bg);border-color:var(--ok-line);color:#0B5C3B}
+
+/* 覆层：提交确认 / 底部弹层 */
+.overlay{position:absolute;inset:0;background:rgba(15,20,25,.42);display:flex;align-items:flex-end;border-radius:19px;z-index:9}
+.sheet{background:#fff;width:100%;border-radius:14px 14px 0 0;padding:16px 14px 14px;max-height:78%;overflow:auto}
+.sheet h4{font-size:15px;margin-bottom:4px}
+.sheet .sub{font-size:12px;color:var(--ink-500);margin-bottom:12px}
+.sheet .items{background:var(--surface-sunken);border:1px solid var(--line);border-radius:var(--r-md);padding:10px;font-size:12.5px;margin-bottom:12px}
+.sheet .items .it{display:flex;gap:8px;padding:4px 0;align-items:baseline}
+.sheet .items .it .n{font-family:var(--font-num);color:var(--danger);font-weight:700;flex:none}
+.sheet .kv{display:flex;justify-content:space-between;font-size:12.5px;padding:5px 0;border-bottom:1px dashed var(--line)}
+.sheet .kv:last-of-type{border-bottom:0}
+.sheet .kv b{font-family:var(--font-num)}
+.sheet .acts{display:flex;flex-direction:column;gap:8px;margin-top:14px}
+
+.toast{position:absolute;top:56px;left:12px;right:12px;background:#0F1419;color:#fff;border-radius:var(--r-md);padding:10px 12px;font-size:12.5px;display:flex;align-items:center;gap:8px;z-index:12;box-shadow:var(--sh-2)}
+.toast .ok{color:#4ADE9B;font-weight:800}
+
+/* 说明栏 */
+.notes{flex:1;min-width:260px;max-width:520px}
+.note{background:#fff;border:1px solid var(--line);border-left:3px solid var(--brand-600);border-radius:0 var(--r-md) var(--r-md) 0;padding:13px 15px;font-size:12.5px;color:var(--ink-500);line-height:1.7;margin-bottom:12px}
+.note b{color:var(--ink-900)}
+.note ul{margin:7px 0 0;padding-left:16px}
+.note li{margin:4px 0}
+.note code{font-family:var(--font-num);font-size:11.5px;background:var(--surface-sunken);border:1px solid var(--line);border-radius:var(--r-sm);padding:0 4px}
+.kvbox{background:#fff;border:1px solid var(--line);border-radius:var(--r-md);padding:12px;font-size:12.5px}
+.kvbox .k{display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px dashed var(--line)}
+.kvbox .k:last-child{border-bottom:0}
+.kvbox .k span{color:var(--ink-500)}
+.kvbox .k b{font-family:var(--font-num)}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="doc-head">
+    <div class="eyebrow">设计稿 03 / 供货商侧 ★ 本次适配重点</div>
+    <h1>待报价 · 手机报价填报</h1>
+    <p class="lede">供货商以手机为主要终端，必须在手机上完成"看到单据 → 填完报价 → 提交"的全流程。本页按 PRD 第 10.3 节规范出图：物料卡片、默认只展开单价、底部吸底操作栏、每 10 行分段、拍照上传、弱网容错。</p>
+    <a class="crumb-link" href="01-design-system.html">← 返回设计系统与页面索引</a>
+  </header>
+
+  <!-- ==================== 1. 登录 / 改密 ==================== -->
+  <section class="sec">
+    <h2><span class="idx">03-1</span>登录与首次改密</h2>
+    <p>供货商拿到的是初始密码，首次登录强制改密。手机端两个页面都必须可独立完成，且输入框聚焦时页面不能被自动放大、按钮不被键盘顶出可视区。</p>
+    <div class="frs"><span>FR-SUP-01</span><span>FR-ACC-13</span><span>FR-RWD-08</span><span>FR-RWD-26</span></div>
+
+    <div class="phone-row">
+      <div class="phone">
+        <div class="cap">登录页 <span>390×780</span></div>
+        <div class="frame"><div class="screen">
+          <div class="notch"><i></i></div>
+          <div class="body" style="display:flex;flex-direction:column;justify-content:center;background:#fff;padding:22px">
+            <div style="text-align:center;margin-bottom:26px">
+              <div style="width:52px;height:52px;border-radius:12px;background:var(--brand-800);color:#fff;display:grid;place-items:center;font-size:20px;font-weight:800;margin:0 auto 12px">询</div>
+              <div style="font-size:19px;font-weight:700;letter-spacing:-.02em">询价报价系统</div>
+              <div style="font-size:12.5px;color:var(--ink-400);margin-top:5px">供货商报价入口</div>
+            </div>
+            <div style="margin-bottom:14px">
+              <label style="font-size:12.5px;font-weight:600;display:block;margin-bottom:6px">登录账号</label>
+              <input class="inp" value="hengxin_wenju" style="height:46px;font-size:16px">
+            </div>
+            <div style="margin-bottom:8px">
+              <label style="font-size:12.5px;font-weight:600;display:block;margin-bottom:6px">密码</label>
+              <div style="position:relative">
+                <input class="inp" type="password" value="••••••••" style="height:46px;font-size:16px;padding-right:44px">
+                <span style="position:absolute;right:12px;top:0;height:46px;display:flex;align-items:center;color:var(--ink-400)">
+                  <svg width="17" height="17" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M1.5 8S4 3.5 8 3.5 14.5 8 14.5 8 12 12.5 8 12.5 1.5 8 1.5 8z"/><circle cx="8" cy="8" r="1.8"/></svg>
+                </span>
+              </div>
+            </div>
+            <div style="font-size:11.5px;color:var(--ink-400);margin-bottom:20px">如忘记密码，请联系采购方管理员重置</div>
+            <button class="btn btn-primary btn-lg btn-block">登录</button>
+            <div style="margin-top:22px;padding-top:14px;border-top:1px solid var(--line-soft);font-size:11px;color:var(--ink-400);text-align:center;line-height:1.7">
+              内网系统 · 请勿在公共网络使用<br>建议"添加到主屏幕"以便下次快速打开
+            </div>
+          </div>
+          <div class="home-ind"><i></i></div>
+        </div></div>
+      </div>
+
+      <div class="phone">
+        <div class="cap">首次登录强制改密 <span>390×780</span></div>
+        <div class="frame"><div class="screen">
+          <div class="notch"><i></i></div>
+          <div class="appbar"><b>修改初始密码</b></div>
+          <div class="body" style="background:#fff">
+            <div class="alert alert-warn"><span class="i">!</span><div>为保障报价数据安全，<b>首次登录必须修改密码</b>后才能进入系统。</div></div>
+            <div style="margin-top:16px">
+              <label style="font-size:12.5px;font-weight:600;display:block;margin-bottom:6px">新密码</label>
+              <input class="inp" type="password" value="••••••••" style="height:46px;font-size:16px">
+              <div class="hint">8~20 位，至少含字母与数字</div>
+            </div>
+            <div style="margin-top:14px">
+              <label style="font-size:12.5px;font-weight:600;display:block;margin-bottom:6px">确认新密码</label>
+              <input class="inp" type="password" value="••••••••" style="height:46px;font-size:16px">
+            </div>
+            <div style="margin-top:16px;background:var(--surface-sunken);border:1px solid var(--line);border-radius:var(--r-md);padding:11px;font-size:12px;color:var(--ink-500)">
+              <b style="color:var(--ink-700);display:block;margin-bottom:5px">密码强度</b>
+              <div style="height:5px;border-radius:100px;background:var(--line);overflow:hidden;margin-bottom:6px"><i style="display:block;height:100%;width:66%;background:var(--warn)"></i></div>
+              当前：中等（含字母与数字，建议再加长）
+            </div>
+          </div>
+          <div class="bottombar">
+            <div class="row">
+              <div class="grow"></div>
+              <button class="btn btn-secondary" style="flex:0 0 96px">退出登录</button>
+              <button class="btn btn-primary" style="flex:1">确认修改并进入</button>
+            </div>
+          </div>
+          <div class="home-ind"><i></i></div>
+        </div></div>
+      </div>
+
+      <div class="notes">
+        <div class="note">
+          <b>两个易踩的坑</b>
+          <ul>
+            <li>输入框字号必须 ≥16px，否则 iOS 聚焦时会<b>把整页放大</b>（PRD FR-RWD-08）。</li>
+            <li><code>viewport</code> <b>不加</b> <code>maximum-scale=1</code>，保留系统缩放能力（无障碍要求）。</li>
+            <li>登录按钮与底部留白要足够，键盘弹出时不会被"钉"到键盘后面。</li>
+          </ul>
+        </div>
+        <div class="note">
+          <b>为什么登录页提示"添加到主屏幕"</b>
+          本期不做通知、不做 App，供货商每次都要手动打开浏览器。提供 <code>manifest.json</code> + <code>apple-touch-icon</code> 后，供货商可以把入口加到桌面，减少"找不到系统"的沟通成本（Q9）。
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ==================== 2. 待报价列表 ==================== -->
+  <section class="sec">
+    <h2><span class="idx">03-2</span>待报价列表</h2>
+    <p>供货商登录后的默认页。只显示分派给本公司的、已发布的询价单；草稿单完全不可见。不显示任何他方报价或"当前最低价"。</p>
+    <div class="frs"><span>FR-SUP-01</span><span>FR-SUP-02</span><span>FR-SUP-05</span><span>FR-RWD-16</span><span>FR-RWD-25</span></div>
+
+    <div class="phone-row">
+      <div class="phone">
+        <div class="cap">待报价列表 <span>390×780</span></div>
+        <div class="frame"><div class="screen">
+          <div class="notch"><i></i></div>
+          <div class="appbar">
+            <b>待报价</b><span class="badge-lite">3 张</span>
+            <span class="spacer"></span>
+            <span class="ic"><svg width="18" height="18" viewBox="0 0 16 16" fill="none" stroke="#fff" stroke-width="1.5"><circle cx="8" cy="5.5" r="2.5"/><path d="M2.5 13.5c0-2.5 2.5-4 5.5-4s5.5 1.5 5.5 4"/></svg></span>
+          </div>
+          <div class="body">
+            <div style="display:flex;gap:6px;margin-bottom:12px">
+              <span class="badge b-info" style="padding:4px 12px">待报价 3</span>
+              <span class="badge b-pending" style="padding:4px 12px;background:#fff">已报价 12</span>
+            </div>
+
+            <div class="row-card" style="border-left:3px solid var(--danger)">
+              <div style="display:flex;align-items:flex-start;gap:8px">
+                <span class="t" style="flex:1">包装材料-纸箱询价</span>
+                <span class="badge b-danger">未报价</span>
+              </div>
+              <div class="s"><span class="num">RFQ202610090003</span> · 包材 · 16 行</div>
+              <div class="m">
+                <span style="font-size:11.5px;font-weight:700;color:var(--danger)">剩余 6 小时</span>
+                <span class="r num" style="font-size:11.5px;color:var(--ink-500)">已填 0/16 行</span>
+              </div>
+              <button class="btn btn-primary" style="width:100%;margin-top:10px">去报价</button>
+            </div>
+
+            <div class="row-card">
+              <div style="display:flex;align-items:flex-start;gap:8px">
+                <span class="t" style="flex:1">办公用品-10月补货询价</span>
+                <span class="badge b-partial">报价中</span>
+              </div>
+              <div class="s"><span class="num">RFQ202610120001</span> · 办公用品 · 8 行</div>
+              <div class="prog"><div class="bar warn"><i style="width:37.5%"></i></div><span class="txt">3/8 行</span></div>
+              <div class="m">
+                <span style="font-size:11.5px;font-weight:600;color:var(--warn)">剩余 2 天 4 小时</span>
+                <span class="r" style="font-size:11.5px;color:var(--ink-400)">保存于 09:24</span>
+              </div>
+              <button class="btn btn-primary" style="width:100%;margin-top:10px">继续填报</button>
+            </div>
+
+            <div class="row-card">
+              <div style="display:flex;align-items:flex-start;gap:8px">
+                <span class="t" style="flex:1">车间耗材-Q4备料询价</span>
+                <span class="badge b-quoted">已提交</span>
+              </div>
+              <div class="s"><span class="num">RFQ202610100002</span> · 生产耗材 · 43 行</div>
+              <div class="prog"><div class="bar ok"><i style="width:100%"></i></div><span class="txt">43/43 行</span></div>
+              <div class="m">
+                <span style="font-size:11.5px;color:var(--ok);font-weight:600">已提交，截止前仍可修改</span>
+                <span class="r" style="font-size:11.5px;color:var(--ink-400)">剩余 3 天</span>
+              </div>
+              <button class="btn btn-secondary" style="width:100%;margin-top:10px">修改报价</button>
+            </div>
+
+            <div class="card flat" style="margin-top:14px">
+              <div style="padding:11px 12px;border-bottom:1px solid var(--line-soft);font-size:11.5px;color:var(--ink-400);font-weight:600">已截止（仅可查看自己的报价）</div>
+              <div style="padding:11px 12px;display:flex;align-items:center;gap:8px">
+                <div style="flex:1">
+                  <div style="font-size:13px;font-weight:600">五金配件-常规补货</div>
+                  <div style="font-size:11.5px;color:var(--ink-400);margin-top:3px"><span class="num">RFQ202610050005</span> · 已报价 27/27 行</div>
+                </div>
+                <a class="link">查看</a>
+              </div>
+            </div>
+          </div>
+          <div class="home-ind"><i></i></div>
+        </div></div>
+      </div>
+
+      <div class="notes">
+        <div class="note">
+          <b>列表页的信息取舍</b>
+          <ul>
+            <li>卡片上<b>不放</b>"我方内部备注"、"其他供货商状态"等任何越权信息。</li>
+            <li>倒计时与填写进度放在同一行：<b>剩余时间和已填行数是供货商唯一关心的两组数字</b>。</li>
+            <li>&lt;24h 的单据整卡加红色左边框 + 红色倒计时，扫一眼即可判断优先级（FR-RWD-25）。</li>
+            <li>"已提交"状态仍显示"截止前仍可修改"，避免供货商误以为已锁定而不敢改价。</li>
+          </ul>
+        </div>
+        <div class="kvbox">
+          <div class="k"><span>单张卡片字段数</span><b>5</b></div>
+          <div class="k"><span>触控热区最小尺寸</span><b>44×44px</b></div>
+          <div class="k"><span>主按钮位置</span><b>卡片内全宽</b></div>
+          <div class="k"><span>越权数据</span><b>0 项</b></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ==================== 3. 报价填报（核心） ==================== -->
+  <section class="sec">
+    <h2><span class="idx">03-3</span>报价填报页（核心）</h2>
+    <p>整个系统最重要的手机页面。<b>每行物料一张卡片，默认只展开"含税单价"一个输入框</b>，其余字段（税率、MOQ、交期、到货日期、备注、附件）收进折叠区；底部吸底栏常显"已填 x/y 行"。43 行以上按每 10 行分段。</p>
+    <div class="frs"><span>FR-RWD-17</span><span>FR-RWD-18</span><span>FR-RWD-19</span><span>FR-RWD-22</span><span>FR-RWD-31</span><span>FR-SUP-07</span><span>FR-SUP-10</span></div>
+
+    <div class="phone-row">
+      <!-- 3-1 默认态 -->
+      <div class="phone">
+        <div class="cap">A · 默认态：只露单价 <span>推荐主态</span></div>
+        <div class="frame"><div class="screen">
+          <div class="notch"><i></i></div>
+          <div class="appbar">
+            <span class="ic"><svg width="17" height="17" viewBox="0 0 16 16" fill="none" stroke="#fff" stroke-width="1.8"><path d="M10 3L5 8l5 5"/></svg></span>
+            <b>填写报价</b><span class="spacer"></span>
+            <span class="badge-lite">剩余 2天4时</span>
+          </div>
+          <div class="body">
+            <div style="background:#fff;border:1px solid var(--line);border-radius:var(--r-md);padding:10px 12px;margin-bottom:10px">
+              <div style="font-size:13px;font-weight:600">办公用品-10月补货询价</div>
+              <div style="font-size:11.5px;color:var(--ink-400);margin-top:3px"><span class="num">RFQ202610120001</span> · 截止 10-15 18:00</div>
+              <div style="font-size:11.5px;color:var(--info);margin-top:6px;padding-top:6px;border-top:1px dashed var(--line)">采购方备注：报价含运费，付款方式月结 30 天</div>
+            </div>
+
+            <div class="alert alert-warn" style="padding:9px 11px">
+              <span class="i">!</span>
+              <div style="font-size:12px">仅剩 6 小时，请尽快提交</div>
+            </div>
+
+            <!-- 物料卡片 1：已填，折叠 -->
+            <div class="mat filled">
+              <div class="mat-head">
+                <div class="l1"><span class="seq">01</span><span class="nm">订书机</span><span class="flag ok">已填</span></div>
+                <div class="l2"><span>得力，小</span><em>·</em><span>单位 个</span><em>·</em><span>采购 40</span></div>
+              </div>
+              <div class="mat-price">
+                <label>含税单价 <span class="req">*</span></label>
+                <div class="inp-wrap"><span class="cur">¥</span><input class="num" inputmode="decimal" value="113.00"><span class="unit">元/个</span></div>
+              </div>
+              <div class="more-tog">更多报价信息（税率 / MOQ / 交期 / 到货 / 备注）<span class="c">3 项已填 ›</span></div>
+            </div>
+
+            <!-- 物料卡片 2：未填 -->
+            <div class="mat">
+              <div class="mat-head">
+                <div class="l1"><span class="seq">02</span><span class="nm">A4 复印纸</span><span class="flag no">未填</span></div>
+                <div class="l2"><span>70g / 500张</span><em>·</em><span>单位 包</span><em>·</em><span>采购 200</span></div>
+              </div>
+              <div class="mat-price">
+                <label>含税单价 <span class="req">*</span></label>
+                <div class="inp-wrap focus"><span class="cur">¥</span><input class="num" inputmode="decimal" placeholder="0.00" value="21.5"><span class="unit">元/包</span></div>
+              </div>
+              <div class="more-tog">更多报价信息（税率 / MOQ / 交期 / 到货 / 备注）<span class="c">›</span></div>
+            </div>
+
+            <!-- 物料卡片 3：未填 -->
+            <div class="mat">
+              <div class="mat-head">
+                <div class="l1"><span class="seq">03</span><span class="nm">签字笔</span><span class="flag no">未填</span></div>
+                <div class="l2"><span>0.5mm 黑色</span><em>·</em><span>单位 支</span><em>·</em><span>采购 500</span></div>
+              </div>
+              <div class="mat-price">
+                <label>含税单价 <span class="req">*</span></label>
+                <div class="inp-wrap"><span class="cur">¥</span><input class="num" inputmode="decimal" placeholder="0.00"><span class="unit">元/支</span></div>
+              </div>
+              <div style="padding:0 12px 10px;font-size:11.5px;color:var(--ink-500);background:var(--warn-bg);border-top:1px dashed var(--warn-line);padding-top:8px;margin-top:0">
+                <b style="color:var(--warn)">采购方要求：</b>可替代品牌请在报价备注说明
+              </div>
+              <div class="more-tog">更多报价信息（税率 / MOQ / 交期 / 到货 / 备注）<span class="c">›</span></div>
+            </div>
+
+            <!-- 物料卡片 4：展开态 -->
+            <div class="mat">
+              <div class="mat-head">
+                <div class="l1"><span class="seq">04</span><span class="nm">档案盒</span><span class="flag no">未填</span></div>
+                <div class="l2"><span>A4 / 55mm</span><em>·</em><span>单位 个</span><em>·</em><span>采购 120</span></div>
+              </div>
+              <div class="mat-price">
+                <label>含税单价 <span class="req">*</span></label>
+                <div class="inp-wrap"><span class="cur">¥</span><input class="num" inputmode="decimal" value="6.8"><span class="unit">元/个</span></div>
+              </div>
+              <div class="more-tog" style="background:var(--brand-50);border-top-color:var(--brand-100);color:var(--brand-800)">收起更多报价信息<span class="c">⌃</span></div>
+              <div class="more-body">
+                <div class="frow">
+                  <label>是否含税</label>
+                  <div class="ctl" style="display:flex;align-items:center;gap:9px">
+                    <div class="switch"><i></i></div><span style="font-size:12.5px">含税报价</span>
+                  </div>
+                </div>
+                <div class="frow">
+                  <label>税率</label>
+                  <div class="ctl"><select class="inp"><option>13%</option><option>9%</option><option>6%</option><option>3%</option><option>0%</option></select></div>
+                </div>
+                <div class="frow">
+                  <label>不含税单价</label>
+                  <div class="ctl"><input class="inp num" value="6.02" readonly style="background:var(--surface-sunken);color:var(--ink-500)"></div>
+                </div>
+                <div class="frow">
+                  <label>最小起订量</label>
+                  <div class="ctl"><input class="inp num" inputmode="numeric" value="50" style="text-align:right"><div class="hint">采购数量 120，MOQ 50 满足起订</div></div>
+                </div>
+                <div class="frow">
+                  <label>交货周期</label>
+                  <div class="ctl"><input class="inp num" inputmode="numeric" value="5" style="text-align:right"><div class="hint">单位：天（与到货日期至少填一项）</div></div>
+                </div>
+                <div class="frow">
+                  <label>到货日期</label>
+                  <div class="ctl"><input class="inp" type="date" value="2026-10-22"></div>
+                </div>
+                <div class="frow" style="align-items:flex-start">
+                  <label style="padding-top:9px">行备注</label>
+                  <div class="ctl"><textarea class="inp" rows="2" style="height:auto;padding:9px 10px;resize:none" placeholder="填写变动或替代方案">可提供 55mm 加强版，价格不变</textarea></div>
+                </div>
+                <div class="frow" style="align-items:flex-start">
+                  <label style="padding-top:9px">行附件</label>
+                  <div class="ctl">
+                    <div class="attach">
+                      <div class="thumb">照片<div class="x">×</div></div>
+                      <div class="ph"><svg width="19" height="19" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M2 5.5h2.2L5.4 4h5.2l1.2 1.5H14v7H2z"/><circle cx="8" cy="9" r="2.2"/></svg></div>
+                      <div class="ph alb"><svg width="19" height="19" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><rect x="2" y="3" width="12" height="10" rx="1.4"/><path d="M2 11l3.2-3 2.6 2.4L10.4 8l3.6 3.4"/></svg></div>
+                    </div>
+                    <div class="hint">支持直接拍照，单张 ≤2MB，每行最多 3 个</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="bottombar">
+            <div class="row">
+              <div class="cnt">已填<b>4 / 8</b></div>
+              <div class="grow"></div>
+              <button class="btn btn-secondary" style="flex:0 0 92px">保存</button>
+              <button class="btn btn-primary" style="flex:1">提交报价</button>
+            </div>
+          </div>
+          <div class="home-ind"><i></i></div>
+        </div></div>
+      </div>
+
+      <!-- 3-2 分段导航 -->
+      <div class="phone">
+        <div class="cap">B · 长清单分段（43 行）<span>每 10 行</span></div>
+        <div class="frame"><div class="screen">
+          <div class="notch"><i></i></div>
+          <div class="appbar">
+            <span class="ic"><svg width="17" height="17" viewBox="0 0 16 16" fill="none" stroke="#fff" stroke-width="1.8"><path d="M10 3L5 8l5 5"/></svg></span>
+            <b>填写报价</b><span class="spacer"></span>
+            <span class="badge-lite">剩余 3天</span>
+          </div>
+          <div class="body">
+            <div style="background:#fff;border:1px solid var(--line);border-radius:var(--r-md);padding:10px 12px;margin-bottom:10px">
+              <div style="font-size:13px;font-weight:600">车间耗材-Q4备料询价</div>
+              <div style="font-size:11.5px;color:var(--ink-400);margin-top:3px"><span class="num">RFQ202610100002</span> · 共 43 行</div>
+            </div>
+
+            <div class="seg">
+              <div class="c">第 <b>1~10</b> 行 / 共 <b>43</b> 行</div>
+              <div class="r">
+                <span class="off">‹</span><span>›</span>
+              </div>
+            </div>
+
+            <div style="font-size:11.5px;color:var(--ink-400);margin:0 0 8px 2px">
+              本段 10 行中有 <b style="color:var(--danger)">2 行未填</b> · 全单已填 <b>11/43</b>
+            </div>
+
+            <div class="mat filled">
+              <div class="mat-head">
+                <div class="l1"><span class="seq">01</span><span class="nm">不锈钢螺栓</span><span class="flag ok">已填</span></div>
+                <div class="l2"><span>M8×40</span><em>·</em><span>单位 个</span><em>·</em><span>采购 2000</span></div>
+              </div>
+              <div class="mat-price">
+                <label>含税单价 <span class="req">*</span></label>
+                <div class="inp-wrap"><span class="cur">¥</span><input class="num" inputmode="decimal" value="0.85"><span class="unit">元/个</span></div>
+              </div>
+              <div class="more-tog">更多报价信息<span class="c">2 项已填 ›</span></div>
+            </div>
+
+            <div class="mat filled">
+              <div class="mat-head">
+                <div class="l1"><span class="seq">02</span><span class="nm">尼龙扎带</span><span class="flag ok">已填</span></div>
+                <div class="l2"><span>4×200mm</span><em>·</em><span>单位 包</span><em>·</em><span>采购 80</span></div>
+              </div>
+              <div class="mat-price">
+                <label>含税单价 <span class="req">*</span></label>
+                <div class="inp-wrap"><span class="cur">¥</span><input class="num" inputmode="decimal" value="12.60"><span class="unit">元/包</span></div>
+              </div>
+              <div class="more-tog">更多报价信息<span class="c">›</span></div>
+            </div>
+
+            <div class="mat error">
+              <div class="mat-head">
+                <div class="l1"><span class="seq" style="color:var(--danger)">09</span><span class="nm" style="color:var(--danger)">防锈漆</span><span class="flag no" style="color:var(--danger);background:var(--danger-bg);border-color:var(--danger-line)">未填</span></div>
+                <div class="l2"><span>红丹 3kg</span><em>·</em><span>单位 桶</span><em>·</em><span>采购 24</span></div>
+              </div>
+              <div class="mat-price">
+                <label style="color:var(--danger)">含税单价 <span class="req">*</span> 未填写</label>
+                <div class="inp-wrap" style="border-color:var(--danger-line)"><span class="cur" style="color:var(--danger)">¥</span><input class="num" inputmode="decimal" placeholder="0.00"><span class="unit">元/桶</span></div>
+              </div>
+              <div class="more-tog">更多报价信息<span class="c">›</span></div>
+            </div>
+
+            <div class="seg" style="margin-top:2px">
+              <div class="c">跳转段落</div>
+              <div class="r" style="gap:5px">
+                <span style="width:auto;padding:0 9px;font-size:12px;font-weight:600">1~10</span>
+                <span style="width:auto;padding:0 9px;font-size:12px;color:var(--ink-500)">11~20</span>
+                <span style="width:auto;padding:0 9px;font-size:12px;color:var(--ink-500)">21~30</span>
+                <span style="width:auto;padding:0 9px;font-size:12px;color:var(--ink-500)">41~43</span>
+              </div>
+            </div>
+          </div>
+          <div class="bottombar">
+            <div class="row">
+              <div class="cnt">全单已填<b>11 / 43</b></div>
+              <div class="grow"></div>
+              <button class="btn btn-secondary" style="flex:0 0 92px">保存</button>
+              <button class="btn btn-primary" style="flex:1">提交报价</button>
+            </div>
+          </div>
+          <div class="home-ind"><i></i></div>
+        </div></div>
+      </div>
+
+      <div class="notes">
+        <div class="note">
+          <b>为什么默认只展开单价</b>
+          8 行物料的完整表单（每行 7 个字段）在手机上要滚动十几屏，供货商极易填到一半放弃。默认只留"含税单价"后，<b>8 行物料一屏多就能扫完</b>，填价动作压缩为"点输入框 → 输数字 → 下一行"。
+          <ul>
+            <li>单价输入框高 <code>44px</code>、字号 <code>18px</code>、<code>inputmode="decimal"</code>（触发带小数点的数字键盘）。</li>
+            <li>已填卡片左边框转为绿色、右上角显示"已填"，形成进度感。</li>
+            <li>折叠区标题直接写<b>字段名</b>而不是"更多"，减少供货商"点开有没有用"的犹豫。</li>
+          </ul>
+        </div>
+        <div class="note">
+          <b>分段导航（B 屏）的两个细节</b>
+          <ul>
+            <li>底部栏的"已填"必须按<b>整单</b>统计（11/43），不能只算当前段，否则供货商会以为填完这段就完事了。</li>
+            <li>段内未填行整卡变红并写出"未填写"，不用红框让用户自己找。</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ==================== 4. 提交 / 保存反馈 ==================== -->
+  <section class="sec">
+    <h2><span class="idx">03-4</span>提交确认、保存反馈与异常态</h2>
+    <p>报价提交是不可逆的对外动作，必须二次确认；同时弱网、超时、截止这几个异常态必须做到"不丢数据、说清原因、能重试"。</p>
+    <div class="frs"><span>FR-RWD-20</span><span>FR-RWD-21</span><span>FR-RWD-23</span><span>FR-SUP-09</span><span>FR-SUP-11</span></div>
+
+    <div class="phone-row">
+      <!-- 提交确认 -->
+      <div class="phone">
+        <div class="cap">C · 提交前确认（有漏填）</div>
+        <div class="frame"><div class="screen">
+          <div class="notch"><i></i></div>
+          <div class="appbar"><span class="ic"><svg width="17" height="17" viewBox="0 0 16 16" fill="none" stroke="#fff" stroke-width="1.8"><path d="M10 3L5 8l5 5"/></svg></span><b>填写报价</b></div>
+          <div class="body" style="background:var(--surface-sunken)">
+            <div class="mat" style="opacity:.45"><div class="mat-head"><div class="l1"><span class="seq">01</span><span class="nm">订书机</span></div></div><div class="mat-price"><div class="inp-wrap"><input class="num" value="113.00"></div></div></div>
+            <div class="mat" style="opacity:.45"><div class="mat-head"><div class="l1"><span class="seq">02</span><span class="nm">A4 复印纸</span></div></div><div class="mat-price"><div class="inp-wrap"><input class="num" value="21.50"></div></div></div>
+            <div class="mat" style="opacity:.45"><div class="mat-head"><div class="l1"><span class="seq">03</span><span class="nm">签字笔</span></div></div></div>
+          </div>
+          <div class="overlay">
+            <div class="sheet">
+              <h4>还有 2 行未填写单价</h4>
+              <div class="sub">提交前需要补齐所有物料的价格</div>
+              <div class="items">
+                <div class="it"><span class="n">第 7 行</span><span>白板笔 · 0.5mm · 支 · 采购 300</span></div>
+                <div class="it"><span class="n">第 8 行</span><span>文件夹 · A4 双强力 · 个 · 采购 150</span></div>
+              </div>
+              <div class="hint" style="margin-bottom:12px">提示：可直接跳到未填行继续填写，已填内容不会丢失。</div>
+              <div class="acts">
+                <button class="btn btn-primary btn-lg">跳到第 7 行继续填写</button>
+                <button class="btn btn-secondary">先保存草稿</button>
+                <button class="btn btn-ghost">取消</button>
+              </div>
+            </div>
+          </div>
+          <div class="home-ind" style="background:#fff"><i></i></div>
+        </div></div>
+      </div>
+
+      <!-- 提交成功 -->
+      <div class="phone">
+        <div class="cap">D · 提交成功反馈</div>
+        <div class="frame"><div class="screen">
+          <div class="notch"><i></i></div>
+          <div class="appbar"><span class="ic"><svg width="17" height="17" viewBox="0 0 16 16" fill="none" stroke="#fff" stroke-width="1.8"><path d="M10 3L5 8l5 5"/></svg></span><b>填写报价</b><span class="spacer"></span><span class="badge-lite">剩余 2天4时</span></div>
+          <div class="toast"><span class="ok">✓</span><span>报价已提交成功，截止前仍可修改</span></div>
+          <div class="body" style="padding-top:52px">
+            <div class="card" style="border-color:var(--ok-line);background:var(--ok-bg);text-align:center;padding:18px 12px">
+              <div style="width:44px;height:44px;border-radius:50%;background:var(--ok);color:#fff;display:grid;place-items:center;font-size:22px;margin:0 auto 10px">✓</div>
+              <div style="font-size:15px;font-weight:700;color:#0B5C3B">报价已提交</div>
+              <div style="font-size:12px;color:#0B5C3B;opacity:.85;margin-top:5px">提交时间 2026-10-13 10:42</div>
+              <div style="font-size:11.5px;color:#0B5C3B;opacity:.85;margin-top:2px">截止前可随时回来修改，系统会保留每次改价记录</div>
+            </div>
+
+            <div style="font-size:11.5px;color:var(--ink-400);font-weight:600;margin:14px 0 7px 2px">本次提交摘要</div>
+            <div class="card" style="padding:0">
+              <div style="padding:9px 12px;border-bottom:1px solid var(--line-soft);display:flex;justify-content:space-between;font-size:12.5px"><span style="color:var(--ink-500)">已报价行数</span><b class="num">8 / 8 行</b></div>
+              <div style="padding:9px 12px;border-bottom:1px solid var(--line-soft);display:flex;justify-content:space-between;font-size:12.5px"><span style="color:var(--ink-500)">报价总金额（含税）</span><b class="num">¥3,284.00</b></div>
+              <div style="padding:9px 12px;border-bottom:1px solid var(--line-soft);display:flex;justify-content:space-between;font-size:12.5px"><span style="color:var(--ink-500)">平均交货周期</span><b class="num">4 天</b></div>
+              <div style="padding:9px 12px;display:flex;justify-content:space-between;font-size:12.5px"><span style="color:var(--ink-500)">本次改价次数</span><b class="num">2 次</b></div>
+            </div>
+
+            <div class="alert alert-info" style="margin-top:12px">
+              <span class="i">i</span>
+              <div>采购方将在截止后统一比价。如需撤回或调整，请在截止时间前返回修改。</div>
+            </div>
+
+            <button class="btn btn-secondary btn-block" style="margin-top:6px">返回待报价列表</button>
+            <button class="btn btn-ghost btn-block" style="margin-top:8px">再修改一次报价</button>
+          </div>
+          <div class="home-ind"><i></i></div>
+        </div></div>
+      </div>
+
+      <!-- 弱网失败 -->
+      <div class="phone">
+        <div class="cap">E · 弱网保存失败（不清空）</div>
+        <div class="frame"><div class="screen">
+          <div class="notch"><i></i></div>
+          <div class="appbar"><span class="ic"><svg width="17" height="17" viewBox="0 0 16 16" fill="none" stroke="#fff" stroke-width="1.8"><path d="M10 3L5 8l5 5"/></svg></span><b>填写报价</b></div>
+          <div class="body">
+            <div class="alert alert-danger">
+              <span class="i">!</span>
+              <div><b>保存失败：网络连接超时。</b>你填写的内容已保留在本机，请检查网络后重试。</div>
+              <button class="btn btn-secondary" style="height:32px;font-size:12.5px;margin-top:9px">重试保存</button>
+            </div>
+
+            <div class="mat filled">
+              <div class="mat-head">
+                <div class="l1"><span class="seq">01</span><span class="nm">订书机</span><span class="flag ok">已填</span></div>
+                <div class="l2"><span>得力，小</span><em>·</em><span>单位 个</span><em>·</em><span>采购 40</span></div>
+              </div>
+              <div class="mat-price">
+                <label>含税单价 <span class="req">*</span></label>
+                <div class="inp-wrap"><span class="cur">¥</span><input class="num" inputmode="decimal" value="113.00"><span class="unit">元/个</span></div>
+              </div>
+            </div>
+
+            <div class="mat filled">
+              <div class="mat-head">
+                <div class="l1"><span class="seq">02</span><span class="nm">A4 复印纸</span><span class="flag ok">已填</span></div>
+                <div class="l2"><span>70g / 500张</span><em>·</em><span>单位 包</span><em>·</em><span>采购 200</span></div>
+              </div>
+              <div class="mat-price">
+                <label>含税单价 <span class="req">*</span></label>
+                <div class="inp-wrap"><span class="cur">¥</span><input class="num" inputmode="decimal" value="21.50"><span class="unit">元/包</span></div>
+              </div>
+            </div>
+
+            <div class="card" style="border-style:dashed;text-align:center;font-size:11.5px;color:var(--ink-500);padding:11px">
+              本机暂存：已填写 4 行 · 10:41 自动保存
+            </div>
+
+            <div class="alert alert-warn">
+              <span class="i">!</span>
+              <div>若一直无法联网，可先记为草稿，回到有网络的区域后继续。</div>
+            </div>
+          </div>
+          <div class="bottombar">
+            <div class="row">
+              <div class="cnt">已填<b>4 / 8</b></div>
+              <div class="grow"></div>
+              <button class="btn btn-secondary" style="flex:0 0 92px" disabled>保存</button>
+              <button class="btn btn-primary" style="flex:1" disabled>提交报价</button>
+            </div>
+          </div>
+          <div class="home-ind"><i></i></div>
+        </div></div>
+      </div>
+
+      <!-- 已截止 -->
+      <div class="phone">
+        <div class="cap">F · 截止后只读</div>
+        <div class="frame"><div class="screen">
+          <div class="notch"><i></i></div>
+          <div class="appbar" style="background:#3A444F"><span class="ic"><svg width="17" height="17" viewBox="0 0 16 16" fill="none" stroke="#fff" stroke-width="1.8"><path d="M10 3L5 8l5 5"/></svg></span><b>报价单详情</b><span class="spacer"></span><span class="badge-lite">已截止</span></div>
+          <div class="body">
+            <div class="alert alert-warn">
+              <span class="i">!</span>
+              <div><b>本单已于 2026-10-12 12:00 截止</b>，报价已锁定，不能再修改。以下为你提交的报价内容。</div>
+            </div>
+
+            <div class="card" style="padding:11px 12px">
+              <div style="font-size:13px;font-weight:600">车间耗材-Q4备料询价</div>
+              <div style="font-size:11.5px;color:var(--ink-400);margin-top:3px"><span class="num">RFQ202610100002</span> · 43 行</div>
+              <div style="display:flex;gap:14px;margin-top:9px;padding-top:9px;border-top:1px dashed var(--line);font-size:12px">
+                <span>已报价 <b class="num">43/43</b></span>
+                <span>提交于 <b class="num">10-12 10:18</b></span>
+                <span>改价 <b class="num">3</b> 次</span>
+              </div>
+            </div>
+
+            <div class="mat filled" style="opacity:.92">
+              <div class="mat-head">
+                <div class="l1"><span class="seq">01</span><span class="nm">不锈钢螺栓</span></div>
+                <div class="l2"><span>M8×40</span><em>·</em><span>单位 个</span><em>·</em><span>采购 2000</span></div>
+              </div>
+              <div class="mat-price">
+                <label style="color:var(--ink-400)">含税单价</label>
+                <div class="inp-wrap" style="background:var(--surface-sunken);border-color:var(--line)"><span class="cur">¥</span><input class="num" value="0.85" readonly style="color:var(--ink-700)"><span class="unit">元/个</span></div>
+              </div>
+              <div class="more-tog" style="color:var(--ink-400)">更多报价信息<span class="c">税率 13% · 交期 4 天 ›</span></div>
+            </div>
+
+            <div class="mat filled" style="opacity:.92">
+              <div class="mat-head">
+                <div class="l1"><span class="seq">02</span><span class="nm">尼龙扎带</span></div>
+                <div class="l2"><span>4×200mm</span><em>·</em><span>单位 包</span><em>·</em><span>采购 80</span></div>
+              </div>
+              <div class="mat-price">
+                <label style="color:var(--ink-400)">含税单价</label>
+                <div class="inp-wrap" style="background:var(--surface-sunken);border-color:var(--line)"><span class="cur">¥</span><input class="num" value="12.60" readonly style="color:var(--ink-700)"><span class="unit">元/包</span></div>
+              </div>
+              <div class="more-tog" style="color:var(--ink-400)">更多报价信息<span class="c">税率 13% · 交期 5 天 ›</span></div>
+            </div>
+
+            <div class="card" style="padding:11px;font-size:12px;color:var(--ink-500)">
+              <b style="color:var(--ink-700);display:block;margin-bottom:5px">改价记录</b>
+              10-12 10:18 提交 · 10-11 16:05 修改 3 行 · 10-11 09:30 首次保存
+            </div>
+          </div>
+          <div class="bottombar" style="background:var(--surface-sunken)">
+            <div class="row">
+              <div style="font-size:12.5px;color:var(--ink-500);flex:1;text-align:center">报价已于 2026-10-12 12:00 截止，不可修改</div>
+            </div>
+          </div>
+          <div class="home-ind"><i></i></div>
+        </div></div>
+      </div>
+
+      <div class="notes">
+        <div class="note">
+          <b>异常态三条硬规则</b>
+          <ul>
+            <li><b>不丢数据</b>：保存失败绝不清空输入框，同时把内容写入本机暂存（C/E 屏），切后台返回仍在。</li>
+            <li><b>说清原因</b>：区分"网络超时"与"报价已截止"，两者文案与后续动作完全不同。</li>
+            <li><b>能重试</b>：失败提示里直接给"重试保存"按钮，不让用户自己找入口。</li>
+          </ul>
+        </div>
+        <div class="note">
+          <b>截止后的处理</b>
+          截止后转只读：输入框 <code>readonly</code>、底部栏替换为灰色说明条。同时<b>仍然让供货商看到自己提交过的内容与改价记录</b>（Q4 定稿：可见仅自己公司的），便于其自查与后续对账。
+        </div>
+        <div class="kvbox">
+          <div class="k"><span>单价输入框高度 / 字号</span><b>44px / 18px</b></div>
+          <div class="k"><span>键盘类型</span><b>inputmode=decimal</b></div>
+          <div class="k"><span>保存请求超时</span><b>15s</b></div>
+          <div class="k"><span>附件压缩上限</span><b>≤2MB / 张</b></div>
+          <div class="k"><span>分段阈值</span><b>&gt;10 行</b></div>
+          <div class="k"><span>到货日期控件</span><b>原生 date（Q12）</b></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ==================== 5. 平板 ==================== -->
+  <section class="sec">
+    <h2><span class="idx">03-5</span>平板形态（768~1199px）</h2>
+    <p>平板是供货商的次要终端。此档位保留表格形态（列数收敛），不使用卡片，避免大屏上一行一只显示三四条信息造成浪费。</p>
+    <div class="frs"><span>FR-RWD-01</span><span>FR-RWD-09</span><span>10.2 各页面响应式方案</span></div>
+
+    <div class="phone-row">
+      <div style="width:100%;max-width:980px">
+        <div class="cap">iPad 竖屏 768px · 报价填报（表格形态保留）</div>
+        <div class="frame" style="background:#0F1419;border-radius:22px;padding:10px">
+          <div class="screen" style="height:520px;border-radius:14px">
+            <div class="appbar" style="height:44px"><b>填写报价</b><span class="badge-lite" style="margin-left:6px">办公用品-10月补货询价</span><span class="spacer"></span><span class="badge-lite">剩余 2天4时</span></div>
+            <div class="body" style="padding:12px 14px">
+              <div style="background:#fff;border:1px solid var(--line);border-radius:var(--r-md);overflow:hidden">
+                <table style="width:100%;border-collapse:collapse;font-size:12.5px">
+                  <thead>
+                    <tr style="background:var(--surface-sunken);text-align:left">
+                      <th style="padding:9px 10px;font-size:11.5px;color:var(--ink-500);font-weight:600;border-bottom:1px solid var(--line)">物料</th>
+                      <th style="padding:9px 10px;font-size:11.5px;color:var(--ink-500);font-weight:600;border-bottom:1px solid var(--line);width:110px">需求</th>
+                      <th style="padding:9px 10px;font-size:11.5px;color:var(--ink-500);font-weight:600;border-bottom:1px solid var(--line);width:150px">含税单价 *</th>
+                      <th style="padding:9px 10px;font-size:11.5px;color:var(--ink-500);font-weight:600;border-bottom:1px solid var(--line);width:100px">税率</th>
+                      <th style="padding:9px 10px;font-size:11.5px;color:var(--ink-500);font-weight:600;border-bottom:1px solid var(--line);width:100px">交期(天)</th>
+                      <th style="padding:9px 10px;font-size:11.5px;color:var(--ink-500);font-weight:600;border-bottom:1px solid var(--line);width:130px">到货日期</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td style="padding:9px 10px;border-bottom:1px solid var(--line-soft)"><b>订书机</b><div style="font-size:11px;color:var(--ink-400)">得力，小 · 个</div></td>
+                      <td style="padding:9px 10px;border-bottom:1px solid var(--line-soft)" class="num">40</td>
+                      <td style="padding:7px 10px;border-bottom:1px solid var(--line-soft)"><input class="inp num" value="113.00" style="height:34px;text-align:right"></td>
+                      <td style="padding:7px 10px;border-bottom:1px solid var(--line-soft)"><input class="inp" value="13%" readonly style="height:34px;background:var(--surface-sunken)"></td>
+                      <td style="padding:7px 10px;border-bottom:1px solid var(--line-soft)"><input class="inp num" value="3" style="height:34px;text-align:right"></td>
+                      <td style="padding:7px 10px;border-bottom:1px solid var(--line-soft)"><input class="inp" type="date" value="2026-10-18" style="height:34px"></td>
+                    </tr>
+                    <tr>
+                      <td style="padding:9px 10px;border-bottom:1px solid var(--line-soft)"><b>A4 复印纸</b><div style="font-size:11px;color:var(--ink-400)">70g / 500张 · 包</div></td>
+                      <td style="padding:9px 10px;border-bottom:1px solid var(--line-soft)" class="num">200</td>
+                      <td style="padding:7px 10px;border-bottom:1px solid var(--line-soft)"><input class="inp num" value="21.50" style="height:34px;text-align:right"></td>
+                      <td style="padding:7px 10px;border-bottom:1px solid var(--line-soft)"><input class="inp" value="13%" readonly style="height:34px;background:var(--surface-sunken)"></td>
+                      <td style="padding:7px 10px;border-bottom:1px solid var(--line-soft)"><input class="inp num" value="5" style="height:34px;text-align:right"></td>
+                      <td style="padding:7px 10px;border-bottom:1px solid var(--line-soft)"><input class="inp" type="date" value="2026-10-20" style="height:34px"></td>
+                    </tr>
+                    <tr>
+                      <td style="padding:9px 10px;border-bottom:1px solid var(--line-soft)"><b>签字笔</b><div style="font-size:11px;color:var(--ink-400)">0.5mm 黑色 · 支</div></td>
+                      <td style="padding:9px 10px;border-bottom:1px solid var(--line-soft)" class="num">500</td>
+                      <td style="padding:7px 10px;border-bottom:1px solid var(--line-soft)"><input class="inp num" placeholder="0.00" style="height:34px;text-align:right;border-color:var(--danger-line)"></td>
+                      <td style="padding:7px 10px;border-bottom:1px solid var(--line-soft)"><input class="inp" value="13%" readonly style="height:34px;background:var(--surface-sunken)"></td>
+                      <td style="padding:7px 10px;border-bottom:1px solid var(--line-soft)"><input class="inp num" value="4" style="height:34px;text-align:right"></td>
+                      <td style="padding:7px 10px;border-bottom:1px solid var(--line-soft)"><input class="inp" type="date" value="2026-10-19" style="height:34px"></td>
+                    </tr>
+                    <tr>
+                      <td style="padding:9px 10px"><b>档案盒</b><div style="font-size:11px;color:var(--ink-400)">A4 / 55mm · 个</div></td>
+                      <td style="padding:9px 10px" class="num">120</td>
+                      <td style="padding:7px 10px"><input class="inp num" value="6.80" style="height:34px;text-align:right"></td>
+                      <td style="padding:7px 10px"><input class="inp" value="13%" readonly style="height:34px;background:var(--surface-sunken)"></td>
+                      <td style="padding:7px 10px"><input class="inp num" value="5" style="height:34px;text-align:right"></td>
+                      <td style="padding:7px 10px"><input class="inp" type="date" value="2026-10-22" style="height:34px"></td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+              <div style="display:flex;align-items:center;gap:10px;margin-top:12px">
+                <div style="font-size:12.5px;color:var(--ink-500)">已填 <b class="num">3 / 8</b> 行</div>
+                <div style="margin-left:auto;display:flex;gap:8px">
+                  <button class="btn btn-secondary">保存</button>
+                  <button class="btn btn-primary">提交报价</button>
+                </div>
+              </div>
+            </div>
+            <div class="home-ind"><i></i></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="notes" style="max-width:100%">
+        <div class="note">
+          <b>平板档的设计判断</b>
+          平板横屏接近桌面宽度，若仍用手机卡片形态，一屏只能看到 2~3 条物料，反而比表格低效。因此 <code>768~1199px</code> 采用<b>表格形态收敛列数</b>：保留"物料 / 需求 / 单价 / 税率 / 交期 / 到货日期"6 列，把 MOQ、行备注、附件收进行内展开。到 <code>≥1200px</code> 再恢复全列。
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <footer style="margin-top:48px;padding-top:16px;border-top:1px solid var(--line-strong);font-size:12px;color:var(--ink-400)">
+    设计稿 03 / 供货商侧（手机优先）· 配套 <b>doc/PRD-询价报价系统.md</b> 第 10.3 节 · <a href="01-design-system.html" style="color:var(--brand-700)">返回索引</a> · <a href="02-pages-buyer.html" style="color:var(--brand-700)">我方侧页面 →</a>
+  </footer>
+</div>
+</body>
+</html>

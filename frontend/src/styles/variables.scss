@@ -1,0 +1,184 @@
+// ============================================================================
+// 设计令牌 — 唯一来源：doc/design/01-design-system.html 第 02 节「色彩与状态」
+// ----------------------------------------------------------------------------
+// 本文件只定义变量与「令牌输出 mixin」，自身不产生任何 CSS：
+// 它会被大量 SFC 通过 `@use '@/styles/variables' as v;` 引入，
+// 若在此直接写 :root 会导致样式重复 N 份。令牌输出由 styles/index.scss 调用一次。
+//
+// 硬性约束（task-1）：业务组件禁止自创色值 / 紫蓝渐变 / 玻璃拟态，
+// 一律引用本文件的变量或 var(--*) 令牌。
+// ============================================================================
+
+// —— 主色：深墨青（稳重、可信，避开 AI 味的紫蓝）——
+$brand-900: #0B3B37;
+$brand-800: #0E4F4A; // 品牌主色（PRD 指定）
+$brand-700: #12615A; // 主按钮 / 链接
+$brand-600: #16776E; // 焦点环 / 进度
+$brand-500: #1D8F84;
+$brand-100: #E4F2F0; // 浅底
+$brand-50: #F1F8F7; // 选中行
+
+// —— 中性：石板灰阶 ——
+$ink-900: #0F1419;
+$ink-700: #2B3440;
+$ink-500: #5A6672;
+$ink-400: #7C8794;
+$ink-300: #A6AFB9;
+$line-strong: #CBD2DA;
+$line: #E4E7EC;
+$line-soft: #EFF1F4;
+$surface: #FFFFFF;
+$surface-sunken: #F6F7F9;
+$surface-hover: #F2F4F7;
+
+// —— 语义状态色（PRD 第 02 节语义表：草稿/已发布/报价中/已截止/已报价/最低价/未报价）——
+$ok: #0F7B4F;
+$ok-bg: #E7F5EE;
+$ok-line: #BFE3D0;
+$warn: #A8590B;
+$warn-bg: #FFF3E2;
+$warn-line: #F2D6A8;
+$danger: #B42318;
+$danger-bg: #FEECE9;
+$danger-line: #F5C6BF;
+$info: #1B5FA8;
+$info-bg: #E9F1FB;
+$info-line: #C2D8F2;
+$muted: #5A6672;
+$muted-bg: #EFF1F4;
+$muted-line: #DDE1E6;
+
+// —— 最低价高亮（采购比价的核心视觉，全站唯一允许的饱和暖色）——
+$best-bg: #FFFBEB;
+$best-line: #F5D77A;
+$best-ink: #8A5A00;
+
+// —— 字体（中文优先；数字等宽对齐）——
+$font: "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Source Han Sans SC", sans-serif;
+$font-num: "SF Mono", "JetBrains Mono", Consolas, "Liberation Mono", monospace;
+
+// 字号统一用 rem，尊重系统字号放大（FR-RWD-07：放大到 130% 不错乱）
+$fs-title: 1.1875rem; // 19px
+$fs-lg: 0.9375rem; // 15px
+$fs-body: 0.875rem; // 14px
+$fs-sm: 0.8125rem; // 13px
+$fs-xs: 0.75rem; // 12px
+$fs-input-mobile: 1rem; // 16px，防 iOS 聚焦自动放大（FR-RWD-08）
+
+// —— 圆角 / 阴影（小圆角，不用大圆角与重阴影堆叠）——
+$r-sm: 3px;
+$r-md: 5px;
+$r-lg: 8px;
+$sh-1: 0 1px 2px rgba(16, 24, 40, 0.06);
+$sh-2: 0 4px 12px rgba(16, 24, 40, 0.08);
+$sh-3: 0 12px 32px rgba(16, 24, 40, 0.14);
+
+// —— 间距 ——
+$sp-1: 4px;
+$sp-2: 8px;
+$sp-3: 12px;
+$sp-4: 16px;
+$sp-5: 20px;
+$sp-6: 24px;
+$sp-8: 32px;
+
+// —— 布局尺寸 ——
+$nav-w: 200px; // 桌面导航常驻宽度
+$nav-w-collapsed: 64px; // 平板图标栏宽度
+$topbar-h: 52px;
+$touch-target: 44px; // FR-RWD-06 触控热区下限
+$row-h: 40px; // 设计稿：表格行高紧凑 40px
+$bottom-bar-h: 64px; // 手机端吸底操作栏高度（含安全区前）
+$content-max: 1440px;
+
+// —— 侧边导航配色（取自设计稿 04-pages-admin.html 的 .side / .nav / .topbar）——
+$side-bg: $brand-900;
+$side-ink: #CFE3E0;
+$side-muted: #6E8F8B;
+$side-active-bg: rgba($brand-500, 0.22);
+$side-active-bar: #3FC0B0;
+$side-line: rgba(255, 255, 255, 0.09);
+
+// —— 层级 ——
+$z-sticky: 900;
+$z-dropdown: 1000;
+$z-mask: 1100;
+$z-drawer: 1200;
+$z-toast: 2000;
+
+// ----------------------------------------------------------------------------
+// 令牌输出：由 styles/index.scss 调用一次，生成 :root CSS 自定义属性
+// ----------------------------------------------------------------------------
+@mixin design-tokens {
+  :root {
+    // 主色阶
+    --brand-900: #{$brand-900};
+    --brand-800: #{$brand-800};
+    --brand-700: #{$brand-700};
+    --brand-600: #{$brand-600};
+    --brand-500: #{$brand-500};
+    --brand-100: #{$brand-100};
+    --brand-50: #{$brand-50};
+
+    // 中性
+    --ink-900: #{$ink-900};
+    --ink-700: #{$ink-700};
+    --ink-500: #{$ink-500};
+    --ink-400: #{$ink-400};
+    --ink-300: #{$ink-300};
+    --line-strong: #{$line-strong};
+    --line: #{$line};
+    --line-soft: #{$line-soft};
+    --surface: #{$surface};
+    --surface-sunken: #{$surface-sunken};
+    --surface-hover: #{$surface-hover};
+
+    // 语义状态色
+    --ok: #{$ok};
+    --ok-bg: #{$ok-bg};
+    --ok-line: #{$ok-line};
+    --warn: #{$warn};
+    --warn-bg: #{$warn-bg};
+    --warn-line: #{$warn-line};
+    --danger: #{$danger};
+    --danger-bg: #{$danger-bg};
+    --danger-line: #{$danger-line};
+    --info: #{$info};
+    --info-bg: #{$info-bg};
+    --info-line: #{$info-line};
+    --muted: #{$muted};
+    --muted-bg: #{$muted-bg};
+    --muted-line: #{$muted-line};
+
+    // 最低价
+    --best-bg: #{$best-bg};
+    --best-line: #{$best-line};
+    --best-ink: #{$best-ink};
+
+    // 字体与形状
+    --font: #{$font};
+    --font-num: #{$font-num};
+    --r-sm: #{$r-sm};
+    --r-md: #{$r-md};
+    --r-lg: #{$r-lg};
+    --sh-1: #{$sh-1};
+    --sh-2: #{$sh-2};
+    --sh-3: #{$sh-3};
+
+    // 间距
+    --sp-1: #{$sp-1};
+    --sp-2: #{$sp-2};
+    --sp-3: #{$sp-3};
+    --sp-4: #{$sp-4};
+    --sp-5: #{$sp-5};
+    --sp-6: #{$sp-6};
+    --sp-8: #{$sp-8};
+
+    // 布局
+    --nav-w: #{$nav-w};
+    --nav-w-collapsed: #{$nav-w-collapsed};
+    --topbar-h: #{$topbar-h};
+    --touch-target: #{$touch-target};
+    --bottom-bar-h: #{$bottom-bar-h};
+  }
+}

@@ -1,0 +1,154 @@
+// ============================================================================
+// 全局基础样式（入口 main.js 只引入本文件与 element-overrides.scss）
+// ============================================================================
+@use './variables' as v;
+@use './breakpoints' as bp;
+
+// 令牌输出（唯一一次）
+@include v.design-tokens();
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  height: 100%;
+  // 允许系统字号放大（FR-RWD-07），不要写 user-scalable=no / maximum-scale=1
+  -webkit-text-size-adjust: 100%;
+  font-size: 100%; // rem 基准
+}
+
+body {
+  margin: 0;
+  min-height: 100%;
+  font-family: v.$font;
+  font-size: v.$fs-body;
+  line-height: 1.55;
+  color: v.$ink-900;
+  background: v.$surface-sunken;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  // FR-RWD-01：全站不得出现横向滚动条（宽表内部横向滚动除外）
+  overflow-x: hidden;
+}
+
+#app {
+  min-height: 100vh;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+p,
+dl,
+dd,
+figure {
+  margin: 0;
+}
+
+ul,
+ol {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+a {
+  color: v.$brand-700;
+  text-decoration: none;
+
+  &:hover {
+    text-decoration: underline;
+  }
+}
+
+img {
+  display: block;
+  max-width: 100%;
+}
+
+button,
+input,
+textarea,
+select {
+  font-family: inherit;
+  color: inherit;
+}
+
+:focus-visible {
+  outline: 2px solid v.$brand-500;
+  outline-offset: 2px;
+}
+
+// ---------------------------------------------------------------------------
+// 工具类
+// ---------------------------------------------------------------------------
+
+/// 金额 / 数量 / 日期：等宽 + tabular（设计稿「数字 · 等宽对齐」）
+.num {
+  font-family: v.$font-num;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+}
+
+.num--right {
+  text-align: right;
+}
+
+/// 宽表在手机端允许的唯一横向滚动形态（FR-RWD-01）
+.xj-hscroll {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
+  touch-action: pan-x pan-y;
+}
+
+/// 读屏可见、视觉隐藏
+.u-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/// 纯展示差异才用这两个类；「同一数据换组件形态」请用 useBreakpoint + DataTable
+.xj-only-mobile {
+  display: block;
+
+  @include bp.tablet-up {
+    display: none;
+  }
+}
+
+.xj-only-tablet-up {
+  display: none;
+
+  @include bp.tablet-up {
+    display: block;
+  }
+}
+
+/// 抽屉 / 弹层打开时锁定背景滚动（由 composables/useBodyScrollLock.js 写入）
+body.xj-scroll-locked {
+  overflow: hidden !important;
+  touch-action: none;
+}
+
+/// 安全区（刘海屏 / iPhone 底部横条，PRD 10.4）
+.xj-safe-bottom {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+.xj-safe-top {
+  padding-top: env(safe-area-inset-top, 0px);
+}

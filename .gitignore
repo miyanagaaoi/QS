@@ -1,0 +1,36 @@
+# 依赖与构建产物
+node_modules/
+dist/
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# 环境变量（含密钥，禁止入库）
+.env
+!.env.example
+
+# 运行时数据：SQLite 数据库、上传附件、临时文件
+data/
+!data/test_artifacts/
+*.db
+*.db-wal
+*.db-shm
+
+# 测试与覆盖率（pytest 的 tmp_path 会生成 pytest-of-<user>/）
+.pytest_cache/
+pytest-of-*/
+.coverage
+htmlcov/
+*.log
+
+# 浏览器自动化快照与临时状态（browser4-cli 等工具产生）
+.browser4-cli/
+.browser4-cli-state/
+.xj-verify-*
+
+# 编辑器与系统
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

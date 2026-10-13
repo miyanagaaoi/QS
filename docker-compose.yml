@@ -1,0 +1,86 @@
+# 询价报价系统 · Docker Compose 部署（PRD 第 9.4 节）
+#
+# 启动：  docker compose up -d --build
+# 访问：  http://<服务器IP>/          （前端）
+#         http://<服务器IP>/docs      （API 文档，内网调试用）
+# 日志：  docker compose logs -f api
+# 备份：  直接备份 ./data 目录（SQLite 文件 + 上传附件）
+#
+# 初始账号：首次启动时创建 admin；密码取环境变量 INITIAL_ADMIN_PASSWORD，
+#          未设置则生成随机密码并打印在 `docker compose logs api` 中（首次登录强制改密）。
+#
+# 切换到 PostgreSQL 16：取消 db 服务与 api 的 depends_on，并把
+#          XUNJIA_DATABASE_URL 改为 postgresql+psycopg://xunjia:xunjia@db:5432/xunjia
+
+services:
+  api:
+    build:
+      context: ./backend
+    image: xunjia-api:1.0
+    container_name: xunjia-api
+    restart: unless-stopped
+    environment:
+      # 生产务必修改：openssl rand -hex 32
+      XUNJIA_SECRET_KEY: "${XUNJIA_SECRET_KEY:-please-change-this-secret-in-production}"
+      # SQLite 落在 /app/data，随卷持久化
+      XUNJIA_DATABASE_URL: "sqlite:////app/data/xunjia.db"
+      XUNJIA_UPLOAD_DIR: "/app/data/uploads"
+      XUNJIA_ADMIN_PASSWORD: "${INITIAL_ADMIN_PASSWORD:-}"
+      # 是否写入演示数据（供货商/示例询价单），生产请保持 0
+      XUNJIA_SEED_DEMO: "${SEED_DEMO:-0}"
+      XUNJIA_DEMO_PASSWORD: "${DEMO_SUPPLIER_PASSWORD:-supplier123}"
+      XUNJIA_BUYER_PASSWORD: "${DEMO_BUYER_PASSWORD:-buyer123}"
+      TZ: Asia/Shanghai
+    volumes:
+      - ./data:/app/data
+    networks:
+      - xunjia
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8000/api/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+
+  web:
+    build:
+      context: ./frontend
+    image: xunjia-web:1.0
+    container_name: xunjia-web
+    restart: unless-stopped
+    depends_on:
+      api:
+        condition: service_healthy
+    ports:
+      # 宿主端口可通过 .env 覆盖：WEB_PORT=8080
+      - "${WEB_PORT:-80}:80"
+    networks:
+      - xunjia
+
+  # ------------------------------------------------------------------
+  # 可选：PostgreSQL 16（正式环境建议启用，需同时改 api 的 XUNJIA_DATABASE_URL）
+  # 启用方式：docker compose --profile postgres up -d
+  # ------------------------------------------------------------------
+  db:
+    image: postgres:16-alpine
+    container_name: xunjia-db
+    restart: unless-stopped
+    profiles: ["postgres"]
+    environment:
+      POSTGRES_DB: xunjia
+      POSTGRES_USER: xunjia
+      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD:-xunjia}"
+      TZ: Asia/Shanghai
+    volumes:
+      - ./data/pg:/var/lib/postgresql/data
+    networks:
+      - xunjia
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U xunjia -d xunjia"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+networks:
+  xunjia:
+    driver: bridge

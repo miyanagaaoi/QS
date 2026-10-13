@@ -1,0 +1,849 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>询价报价系统 · 系统管理（账号管理 / 档案 / 字典）</title>
+<style>
+:root{
+  --brand-900:#0B3B37;--brand-800:#0E4F4A;--brand-700:#12615A;--brand-600:#16776E;
+  --brand-100:#E4F2F0;--brand-50:#F1F8F7;
+  --ink-900:#0F1419;--ink-700:#2B3440;--ink-500:#5A6672;--ink-400:#7C8794;--ink-300:#A6AFB9;
+  --line-strong:#CBD2DA;--line:#E4E7EC;--line-soft:#EFF1F4;
+  --surface:#FFF;--surface-sunken:#F6F7F9;--surface-hover:#F2F4F7;
+  --ok:#0F7B4F;--ok-bg:#E7F5EE;--ok-line:#BFE3D0;
+  --warn:#A8590B;--warn-bg:#FFF3E2;--warn-line:#F2D6A8;
+  --danger:#B42318;--danger-bg:#FEECE9;--danger-line:#F5C6BF;
+  --info:#1B5FA8;--info-bg:#E9F1FB;--info-line:#C2D8F2;
+  --muted:#5A6672;--muted-bg:#EFF1F4;--muted-line:#DDE1E6;
+  --best-bg:#FFFBEB;--best-line:#F5D77A;--best-ink:#8A5A00;
+  --font:"Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+  --font-num:"SF Mono","JetBrains Mono",Consolas,monospace;
+  --r-sm:3px;--r-md:5px;--r-lg:8px;
+  --sh-1:0 1px 2px rgba(16,24,40,.06);--sh-2:0 4px 12px rgba(16,24,40,.08);--sh-3:0 12px 32px rgba(16,24,40,.16);
+  --nav-w:200px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:var(--font);background:#E9EBEF;color:var(--ink-900);font-size:13px;line-height:1.5;-webkit-font-smoothing:antialiased}
+.num{font-family:var(--font-num);font-variant-numeric:tabular-nums;letter-spacing:-.01em}
+button{font-family:inherit}
+
+.wrap{max-width:1420px;margin:0 auto;padding:28px 24px 72px}
+.doc-head{border-bottom:2px solid var(--ink-900);padding-bottom:16px;margin-bottom:8px}
+.eyebrow{font-size:11.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--brand-700);font-weight:700}
+h1{font-size:26px;letter-spacing:-.02em;margin:8px 0 8px}
+.lede{font-size:14px;color:var(--ink-500);max-width:78ch}
+.crumb-link{display:inline-block;margin-top:12px;font-size:12.5px;color:var(--brand-700);text-decoration:none;font-weight:600}
+.sec{margin-top:40px}
+.sec > h2{font-size:17px;letter-spacing:-.01em;display:flex;align-items:baseline;gap:10px;padding-bottom:9px;border-bottom:1px solid var(--line-strong);margin-bottom:6px}
+.sec > h2 .idx{font-family:var(--font-num);font-size:12.5px;color:var(--brand-600);font-weight:700}
+.sec > p{font-size:13px;color:var(--ink-500);margin:10px 0 16px;max-width:82ch}
+.frs{display:flex;flex-wrap:wrap;gap:5px;margin:-6px 0 16px}
+.frs span{font-family:var(--font-num);font-size:11px;color:var(--brand-700);background:var(--brand-50);border:1px solid var(--brand-100);padding:1px 6px;border-radius:var(--r-sm);font-weight:600}
+.screen-head{display:flex;align-items:center;gap:10px;margin:20px 0 8px}
+.screen-head b{font-size:13.5px}
+.screen-head .dev{font-size:11px;font-weight:700;letter-spacing:.04em;padding:2px 8px;border-radius:var(--r-sm);border:1px solid}
+.dev.desktop{color:var(--ink-500);background:#fff;border-color:var(--line-strong)}
+.dev.mobile{color:var(--brand-700);background:var(--brand-50);border-color:var(--brand-100)}
+.screen-head .hint{font-size:12px;color:var(--ink-400);margin-left:auto}
+
+.chrome{background:#fff;border:1px solid var(--line-strong);border-radius:10px;overflow:hidden;box-shadow:var(--sh-2)}
+.chrome-bar{height:32px;background:#F2F4F7;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:7px;padding:0 12px}
+.chrome-bar i{width:9px;height:9px;border-radius:50%;background:#D6DBE1;display:block}
+.chrome-bar .url{flex:1;height:19px;background:#fff;border:1px solid var(--line);border-radius:100px;font-size:11px;color:var(--ink-400);display:flex;align-items:center;padding:0 10px;font-family:var(--font-num)}
+.chrome-body{background:var(--surface-sunken)}
+
+.app{display:flex;min-height:560px}
+.side{width:var(--nav-w);flex:none;background:#0B3B37;color:#CFE3E0;display:flex;flex-direction:column}
+.side .logo{height:52px;display:flex;align-items:center;gap:9px;padding:0 16px;border-bottom:1px solid rgba(255,255,255,.09)}
+.side .logo .mark{width:22px;height:22px;border-radius:5px;background:#1D8F84;display:grid;place-items:center;color:#fff;font-size:11px;font-weight:800;flex:none}
+.side .logo b{color:#fff;font-size:13.5px}
+.nav{padding:10px 0;flex:1}
+.nav .grp{font-size:10.5px;letter-spacing:.1em;color:#6E8F8B;font-weight:700;padding:10px 16px 5px}
+.nav a{display:flex;align-items:center;gap:9px;height:34px;padding:0 16px;color:#CFE3E0;text-decoration:none;font-size:13px;border-left:2px solid transparent}
+.nav a svg{width:15px;height:15px;flex:none;opacity:.85}
+.nav a.on{background:rgba(29,143,132,.22);color:#fff;border-left-color:#3FC0B0;font-weight:600}
+.side .foot{padding:10px 16px;border-top:1px solid rgba(255,255,255,.09);font-size:11px;color:#6E8F8B}
+
+.main{flex:1;min-width:0;display:flex;flex-direction:column;background:var(--surface-sunken)}
+.topbar{height:52px;background:#fff;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:12px;padding:0 18px;flex:none}
+.crumb{font-size:12.5px;color:var(--ink-400)}
+.crumb b{color:var(--ink-900);font-weight:600}
+.topbar .spacer{flex:1}
+.who{display:flex;align-items:center;gap:8px;font-size:12.5px}
+.who .av{width:26px;height:26px;border-radius:50%;background:var(--brand-100);color:var(--brand-800);display:grid;place-items:center;font-weight:700;font-size:11px}
+.page{padding:18px;flex:1}
+.page-head{display:flex;align-items:flex-start;gap:14px;margin-bottom:14px}
+.page-head h3{font-size:17px;letter-spacing:-.015em}
+.page-head p{font-size:12.5px;color:var(--ink-500);margin-top:3px}
+.page-head .actions{margin-left:auto;display:flex;gap:8px;flex:none}
+
+.tabs{display:flex;gap:2px;border-bottom:1px solid var(--line);margin-bottom:14px}
+.tabs span{padding:9px 14px;font-size:13px;font-weight:600;color:var(--ink-500);border-bottom:2px solid transparent;cursor:pointer;margin-bottom:-1px}
+.tabs span.on{color:var(--brand-700);border-bottom-color:var(--brand-700)}
+.tabs span .n{font-family:var(--font-num);font-size:11px;color:var(--ink-400);margin-left:5px}
+
+.btn{font-size:12.5px;font-weight:600;border-radius:var(--r-md);border:1px solid transparent;height:32px;padding:0 13px;display:inline-flex;align-items:center;justify-content:center;gap:6px;cursor:pointer;white-space:nowrap}
+.btn-primary{background:var(--brand-700);color:#fff;border-color:var(--brand-700)}
+.btn-secondary{background:#fff;color:var(--ink-700);border-color:var(--line-strong)}
+.btn-ghost{background:transparent;color:var(--brand-700)}
+.btn-danger{background:#fff;color:var(--danger);border-color:var(--danger-line)}
+.btn-sm{height:26px;font-size:12px;padding:0 9px}
+.btn-lg{height:38px;font-size:13.5px}
+.link{color:var(--brand-700);font-size:12.5px;font-weight:600;cursor:pointer;text-decoration:none}
+.link:hover{text-decoration:underline}
+.link.danger{color:var(--danger)}
+
+.toolbar{display:flex;gap:10px;align-items:center;margin-bottom:12px;flex-wrap:wrap}
+.input,.select{font-family:inherit;font-size:12.5px;height:32px;padding:0 9px;border:1px solid var(--line-strong);border-radius:var(--r-md);background:#fff;color:var(--ink-900)}
+.select{appearance:none;background-image:linear-gradient(45deg,transparent 50%,var(--ink-400) 50%),linear-gradient(135deg,var(--ink-400) 50%,transparent 50%);background-position:calc(100% - 14px) 14px,calc(100% - 9px) 14px;background-size:5px 5px,5px 5px;background-repeat:no-repeat;padding-right:26px}
+.input:focus,.select:focus{outline:none;border-color:var(--brand-600);box-shadow:0 0 0 3px var(--brand-100)}
+.toolbar .grow{flex:1}
+
+.card{background:#fff;border:1px solid var(--line);border-radius:var(--r-lg);overflow:hidden}
+.card-head{padding:12px 14px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:10px}
+.card-head b{font-size:13.5px}
+.card-head .sub{font-size:12px;color:var(--ink-400)}
+.card-head .right{margin-left:auto;display:flex;gap:8px;align-items:center}
+.tbl{width:100%;border-collapse:collapse;font-size:12.5px}
+.tbl th{background:var(--surface-sunken);text-align:left;padding:9px 12px;font-size:11.5px;font-weight:600;color:var(--ink-500);border-bottom:1px solid var(--line);white-space:nowrap}
+.tbl td{padding:10px 12px;border-bottom:1px solid var(--line-soft);vertical-align:middle}
+.tbl tbody tr:hover{background:var(--brand-50)}
+.tbl tbody tr:last-child td{border-bottom:0}
+.tbl .c{text-align:center}
+.tbl .name{font-weight:600}
+.tbl .sub{color:var(--ink-400);font-size:11.5px}
+.ops{display:flex;gap:10px;align-items:center}
+.tfoot{padding:10px 14px;border-top:1px solid var(--line);display:flex;align-items:center;gap:10px;font-size:12.5px;color:var(--ink-500)}
+.tfoot .right{margin-left:auto}
+.pager{display:flex;gap:4px}
+.pager span{min-width:26px;height:26px;border:1px solid var(--line-strong);border-radius:var(--r-md);display:grid;place-items:center;font-size:12px;background:#fff;cursor:pointer}
+.pager span.on{background:var(--brand-700);border-color:var(--brand-700);color:#fff;font-weight:600}
+
+.badge{display:inline-flex;align-items:center;gap:5px;font-size:11.5px;font-weight:600;padding:1px 8px;border-radius:100px;border:1px solid;line-height:1.75;white-space:nowrap}
+.badge::before{content:"";width:5px;height:5px;border-radius:50%;background:currentColor;flex:none}
+.b-ok{color:var(--ok);background:var(--ok-bg);border-color:var(--ok-line)}
+.b-off{color:var(--muted);background:var(--muted-bg);border-color:var(--muted-line)}
+.b-admin{color:var(--brand-800);background:var(--brand-50);border-color:var(--brand-100)}
+.b-warn{color:var(--warn);background:var(--warn-bg);border-color:var(--warn-line)}
+.b-danger{color:var(--danger);background:var(--danger-bg);border-color:var(--danger-line)}
+.b-info{color:var(--info);background:var(--info-bg);border-color:var(--info-line)}
+
+.alert{display:flex;gap:10px;align-items:flex-start;padding:11px 13px;border-radius:var(--r-md);font-size:12.5px;margin-bottom:12px;border:1px solid}
+.alert .i{flex:none;font-weight:800;line-height:1.3}
+.alert-warn{background:var(--warn-bg);border-color:var(--warn-line);color:#7A4208}
+.alert-info{background:var(--info-bg);border-color:var(--info-line);color:#154882}
+.alert-danger{background:var(--danger-bg);border-color:var(--danger-line);color:#8E1B12}
+.alert-ok{background:var(--ok-bg);border-color:var(--ok-line);color:#0B5C3B}
+.alert b{font-weight:700}
+
+.two{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+@media(max-width:1240px){.two{grid-template-columns:1fr}}
+
+/* 弹窗 */
+.modal{position:absolute;inset:0;background:rgba(15,20,25,.42);display:grid;place-items:center;z-index:20;padding:20px}
+.dialog{background:#fff;border-radius:var(--r-lg);width:100%;max-width:560px;box-shadow:var(--sh-3);overflow:hidden}
+.dialog .dh{padding:15px 18px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:10px}
+.dialog .dh b{font-size:15px}
+.dialog .dh .x{margin-left:auto;color:var(--ink-400);cursor:pointer;font-size:16px;line-height:1}
+.dialog .db{padding:18px;max-height:70vh;overflow:auto}
+.dialog .df{padding:14px 18px;border-top:1px solid var(--line);background:var(--surface-sunken);display:flex;gap:9px;justify-content:flex-end}
+.dialog.lg{max-width:760px}
+.field{margin-bottom:14px}
+.field:last-child{margin-bottom:0}
+.field label{font-size:12.5px;font-weight:600;display:block;margin-bottom:5px}
+.field label .req{color:var(--danger)}
+.field .hint{font-size:11.5px;color:var(--ink-400);margin-top:4px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+
+.upload{border:1.5px dashed var(--line-strong);border-radius:var(--r-md);background:var(--surface-sunken);padding:22px;text-align:center}
+.upload .ic{width:40px;height:40px;border-radius:var(--r-md);background:var(--brand-50);border:1px solid var(--brand-100);display:grid;place-items:center;margin:0 auto 10px;color:var(--brand-700)}
+.upload b{font-size:13px;display:block;margin-bottom:5px}
+.upload .hint{font-size:11.5px;color:var(--ink-400);margin-bottom:12px}
+
+.stat{display:flex;gap:10px;margin-bottom:14px}
+.stat .s{flex:1;border:1px solid;border-radius:var(--r-md);padding:11px 13px}
+.stat .s .k{font-size:11.5px;font-weight:600}
+.stat .s .v{font-family:var(--font-num);font-size:20px;font-weight:700;margin-top:3px}
+.s-ok{background:var(--ok-bg);border-color:var(--ok-line);color:#0B5C3B}
+.s-err{background:var(--danger-bg);border-color:var(--danger-line);color:#8E1B12}
+.s-skip{background:var(--muted-bg);border-color:var(--muted-line);color:var(--muted)}
+
+/* 手机 */
+.phone-row{display:flex;gap:20px;flex-wrap:wrap;align-items:flex-start}
+.phone{width:390px;flex:none}
+.phone .cap{font-size:12px;font-weight:700;color:var(--ink-700);margin-bottom:7px}
+.frame{background:#0F1419;border-radius:26px;padding:9px;box-shadow:var(--sh-3)}
+.pscreen{background:var(--surface-sunken);border-radius:19px;overflow:hidden;height:740px;display:flex;flex-direction:column;position:relative}
+.notch{height:20px;display:flex;align-items:center;justify-content:center;flex:none}
+.notch i{width:66px;height:5px;border-radius:100px;background:#2B3440;display:block}
+.appbar{flex:none;height:46px;background:var(--brand-800);color:#fff;display:flex;align-items:center;gap:8px;padding:0 12px}
+.appbar .ic{width:26px;height:26px;display:grid;place-items:center;flex:none}
+.appbar b{font-size:14px;font-weight:600}
+.appbar .spacer{flex:1}
+.pbody{flex:1;overflow:auto;padding:12px}
+.home-ind{height:16px;display:flex;align-items:center;justify-content:center;flex:none}
+.home-ind i{width:110px;height:4px;border-radius:100px;background:#C9CFD6;display:block}
+.m-card{background:#fff;border:1px solid var(--line);border-radius:var(--r-md);padding:12px;margin-bottom:9px}
+.m-card .t{font-size:13.5px;font-weight:600}
+.m-card .s{font-size:11.5px;color:var(--ink-500);margin-top:4px}
+.m-card .m{display:flex;gap:12px;margin-top:9px;padding-top:9px;border-top:1px dashed var(--line);font-size:12.5px}
+.dl{display:grid;grid-template-columns:auto 1fr;gap:5px 10px;font-size:12px;margin-top:9px}
+.dl dt{color:var(--ink-400)}
+.dl dd{font-weight:600;text-align:right;font-family:var(--font-num)}
+.notes{flex:1;min-width:260px;max-width:540px}
+.note{background:#fff;border:1px solid var(--line);border-left:3px solid var(--brand-600);border-radius:0 var(--r-md) var(--r-md) 0;padding:13px 15px;font-size:12.5px;color:var(--ink-500);line-height:1.7;margin-bottom:12px}
+.note b{color:var(--ink-900)}
+.note ul{margin:7px 0 0;padding-left:16px}
+.note li{margin:4px 0}
+.note code{font-family:var(--font-num);font-size:11.5px;background:var(--surface-sunken);border:1px solid var(--line);border-radius:var(--r-sm);padding:0 4px}
+
+footer{margin-top:48px;padding-top:16px;border-top:1px solid var(--line-strong);font-size:12px;color:var(--ink-400)}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="doc-head">
+    <div class="eyebrow">设计稿 04 / 系统管理</div>
+    <h1>账号管理 · 供货商档案 · 基础字典</h1>
+    <p class="lede">对应 PRD 的「系统管理 → 账号管理」。我方账号与供货商账号分开管理，供货商账号支持 Excel 批量导入并给出精确到行的错误报告；批量导入等重操作只在桌面端提供。</p>
+    <a class="crumb-link" href="01-design-system.html">← 返回设计系统与页面索引</a>
+  </header>
+
+  <!-- ==================== 1. 我方账号 ==================== -->
+  <section class="sec">
+    <h2><span class="idx">04-1</span>账号管理 · 我方人员</h2>
+    <p>采购员看不到这个菜单（左侧导航整组隐藏，后端二次鉴权）。管理员在此维护我方账号；<b>账号只能停用不能删除</b>，以保证历史单据的创建人可追溯。</p>
+    <div class="frs"><span>FR-ACC-01</span><span>FR-ACC-02</span><span>FR-ACC-04</span><span>FR-ACC-06</span><span>FR-ACC-07</span></div>
+
+    <div class="screen-head"><b>桌面 1440px · 我方账号</b><span class="dev desktop">DESKTOP</span><span class="hint">管理员视角 · 三个页签</span></div>
+    <div class="chrome">
+      <div class="chrome-bar"><i></i><i></i><i></i><div class="url">http://192.168.1.20/system/account?tab=internal</div></div>
+      <div class="chrome-body">
+        <div class="app">
+          <aside class="side">
+            <div class="logo"><span class="mark">询</span><b>询价报价系统</b></div>
+            <nav class="nav">
+              <div class="grp">采购管理</div>
+              <a href="#"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 4h12M2 8h12M2 12h8"/></svg>报价单</a>
+              <a href="#"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 13V6M6 13V3M10 13V8M14 13V5"/></svg>报价单统计报表</a>
+              <div class="grp">系统管理</div>
+              <a class="on" href="#"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="5.5" r="2.5"/><path d="M2.5 13.5c0-2.5 2.5-4 5.5-4s5.5 1.5 5.5 4"/></svg>账号管理</a>
+              <a href="#"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 3h10v10H3z"/><path d="M6 7h4M6 10h2"/></svg>操作日志</a>
+            </nav>
+            <div class="foot">v1.1 · 内网部署</div>
+          </aside>
+          <div class="main">
+            <div class="topbar">
+              <div class="crumb">系统管理 / <b>账号管理</b></div>
+              <div class="spacer"></div>
+              <div class="who"><span class="av">李</span>李主管 · 管理员</div>
+            </div>
+            <div class="page">
+              <div class="page-head">
+                <div><h3>账号管理</h3><p>我方人员与供货商账号统一入口</p></div>
+                <div class="actions">
+                  <button class="btn btn-secondary">导出账号清单</button>
+                  <button class="btn btn-primary">+ 新建我方账号</button>
+                </div>
+              </div>
+
+              <div class="tabs">
+                <span class="on">我方人员<span class="n">4</span></span>
+                <span>供货商账号<span class="n">48</span></span>
+                <span>供货商档案<span class="n">46</span></span>
+                <span>基础字典</span>
+              </div>
+
+              <div class="toolbar">
+                <input class="input" placeholder="用户名 / 姓名" style="width:200px">
+                <select class="select"><option>全部角色</option><option>管理员</option><option>采购员</option></select>
+                <select class="select"><option>全部状态</option><option>启用</option><option>停用</option></select>
+                <div class="grow"></div>
+                <button class="btn btn-secondary">查询</button>
+              </div>
+
+              <div class="card">
+                <table class="tbl">
+                  <thead>
+                    <tr>
+                      <th style="width:150px">用户名</th><th style="width:110px">姓名</th><th style="width:110px">角色</th>
+                      <th style="width:100px">状态</th><th style="width:160px">最后登录时间</th><th style="width:150px">创建时间</th><th>操作</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td class="num">lizhuguan</td>
+                      <td><span class="name">李主管</span></td>
+                      <td><span class="badge b-admin">管理员</span></td>
+                      <td><span class="badge b-ok">启用</span></td>
+                      <td class="num">2026-10-13 08:12</td>
+                      <td class="num sub">2026-09-01 10:00</td>
+                      <td><div class="ops"><a class="link">编辑</a><a class="link">重置密码</a><a class="link danger">停用</a></div></td>
+                    </tr>
+                    <tr>
+                      <td class="num">wangcaigou</td>
+                      <td><span class="name">王采购</span></td>
+                      <td><span class="badge b-info">采购员</span></td>
+                      <td><span class="badge b-ok">启用</span></td>
+                      <td class="num">2026-10-13 09:41</td>
+                      <td class="num sub">2026-09-01 10:02</td>
+                      <td><div class="ops"><a class="link">编辑</a><a class="link">重置密码</a><a class="link danger">停用</a></div></td>
+                    </tr>
+                    <tr>
+                      <td class="num">zhaocaigou</td>
+                      <td><span class="name">赵采购</span></td>
+                      <td><span class="badge b-info">采购员</span></td>
+                      <td><span class="badge b-ok">启用</span></td>
+                      <td class="num">2026-10-12 16:28</td>
+                      <td class="num sub">2026-09-05 14:20</td>
+                      <td><div class="ops"><a class="link">编辑</a><a class="link">重置密码</a><a class="link danger">停用</a></div></td>
+                    </tr>
+                    <tr>
+                      <td class="num">suncaigou</td>
+                      <td><span class="name">孙采购</span><div class="sub">已离职</div></td>
+                      <td><span class="badge b-info">采购员</span></td>
+                      <td><span class="badge b-off">停用</span></td>
+                      <td class="num">2026-09-28 11:05</td>
+                      <td class="num sub">2026-09-05 14:26</td>
+                      <td><div class="ops"><a class="link">编辑</a><a class="link">重置密码</a><a class="link">启用</a></div></td>
+                    </tr>
+                  </tbody>
+                </table>
+                <div class="tfoot">
+                  <span>共 4 个账号 · 启用 3 · 停用 1</span>
+                  <div class="right"><span style="color:var(--ink-400)">账号不可删除，仅可停用（历史单据需保留创建人）</span></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ==================== 2. 供货商账号 + 批量导入 ==================== -->
+  <section class="sec">
+    <h2><span class="idx">04-2</span>供货商账号与批量导入</h2>
+    <p>供货商 ≤50 家，逐个建号太慢，因此<b>批量导入是 P0</b>。导入流程为「下载模板 → 上传 → 预校验 → 确认导入」，校验失败时必须给出精确到行的原因，并可导出错误报告线下修正。</p>
+    <div class="frs"><span>FR-ACC-08</span><span>FR-ACC-10</span><span>FR-ACC-11</span><span>FR-ACC-12</span><span>FR-ACC-13</span><span>FR-RWD-14</span></div>
+
+    <div class="screen-head"><b>桌面 1440px · 供货商账号列表</b><span class="dev desktop">DESKTOP</span><span class="hint">批量导入入口 · 账号与档案一对一绑定</span></div>
+    <div class="chrome">
+      <div class="chrome-bar"><i></i><i></i><i></i><div class="url">http://192.168.1.20/system/account?tab=supplier</div></div>
+      <div class="chrome-body">
+        <div class="app">
+          <aside class="side">
+            <div class="logo"><span class="mark">询</span><b>询价报价系统</b></div>
+            <nav class="nav">
+              <div class="grp">采购管理</div>
+              <a href="#"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 4h12M2 8h12M2 12h8"/></svg>报价单</a>
+              <a href="#"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 13V6M6 13V3M10 13V8M14 13V5"/></svg>报价单统计报表</a>
+              <div class="grp">系统管理</div>
+              <a class="on" href="#"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="5.5" r="2.5"/><path d="M2.5 13.5c0-2.5 2.5-4 5.5-4s5.5 1.5 5.5 4"/></svg>账号管理</a>
+              <a href="#"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 3h10v10H3z"/><path d="M6 7h4M6 10h2"/></svg>操作日志</a>
+            </nav>
+            <div class="foot">v1.1 · 内网部署</div>
+          </aside>
+          <div class="main">
+            <div class="topbar">
+              <div class="crumb">系统管理 / <b>账号管理</b> / 供货商账号</div>
+              <div class="spacer"></div>
+              <div class="who"><span class="av">李</span>李主管 · 管理员</div>
+            </div>
+            <div class="page">
+              <div class="page-head">
+                <div><h3>供货商账号</h3><p>48 个账号 · 45 启用 · 3 停用</p></div>
+                <div class="actions">
+                  <button class="btn btn-secondary">下载导入模板</button>
+                  <button class="btn btn-secondary">批量导入</button>
+                  <button class="btn btn-primary">+ 新建供货商账号</button>
+                </div>
+              </div>
+
+              <div class="tabs">
+                <span>我方人员<span class="n">4</span></span>
+                <span class="on">供货商账号<span class="n">48</span></span>
+                <span>供货商档案<span class="n">46</span></span>
+                <span>基础字典</span>
+              </div>
+
+              <div class="toolbar">
+                <input class="input" placeholder="供货商名称 / 登录账号" style="width:220px">
+                <select class="select"><option>全部状态</option><option>启用</option><option>停用</option><option>未首次登录</option></select>
+                <div class="grow"></div>
+                <button class="btn btn-secondary">查询</button>
+              </div>
+
+              <div class="card">
+                <table class="tbl">
+                  <thead>
+                    <tr>
+                      <th style="width:170px">供货商名称</th><th style="width:150px">登录账号</th><th style="width:110px">联系人</th>
+                      <th style="width:140px">联系电话</th><th style="width:180px">邮箱</th><th style="width:120px">状态</th>
+                      <th style="width:150px">最后登录时间</th><th>操作</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td><span class="name">恒信文具</span></td>
+                      <td class="num">hengxin_wenju</td>
+                      <td>张经理</td><td class="num">138****6621</td>
+                      <td class="sub">zhang@hengxin.example</td>
+                      <td><span class="badge b-ok">启用</span></td>
+                      <td class="num">2026-10-13 09:24</td>
+                      <td><div class="ops"><a class="link">重置密码</a><a class="link">编辑</a><a class="link danger">停用</a></div></td>
+                    </tr>
+                    <tr>
+                      <td><span class="name">鑫达办公</span></td>
+                      <td class="num">xinda_bg</td>
+                      <td>刘女士</td><td class="num">139****3308</td>
+                      <td class="sub">liu@xinda.example</td>
+                      <td><span class="badge b-ok">启用</span></td>
+                      <td class="num">2026-10-13 08:51</td>
+                      <td><div class="ops"><a class="link">重置密码</a><a class="link">编辑</a><a class="link danger">停用</a></div></td>
+                    </tr>
+                    <tr>
+                      <td><span class="name">汇通商贸</span></td>
+                      <td class="num">huitong_sm</td>
+                      <td>陈先生</td><td class="num">137****9912</td>
+                      <td class="sub">chen@huitong.example</td>
+                      <td><span class="badge b-ok">启用</span></td>
+                      <td class="num">2026-10-12 17:03</td>
+                      <td><div class="ops"><a class="link">重置密码</a><a class="link">编辑</a><a class="link danger">停用</a></div></td>
+                    </tr>
+                    <tr>
+                      <td><span class="name">万隆物资</span></td>
+                      <td class="num">wanlong_wz</td>
+                      <td>赵经理</td><td class="num">135****4417</td>
+                      <td class="sub">zhao@wanlong.example</td>
+                      <td><span class="badge b-warn">未首次登录</span></td>
+                      <td class="sub">—</td>
+                      <td><div class="ops"><a class="link">重置密码</a><a class="link">编辑</a><a class="link danger">停用</a></div></td>
+                    </tr>
+                    <tr>
+                      <td><span class="name">立诚供应链</span></td>
+                      <td class="num">licheng_gyl</td>
+                      <td>孙女士</td><td class="num">136****2233</td>
+                      <td class="sub">sun@licheng.example</td>
+                      <td><span class="badge b-ok">启用</span></td>
+                      <td class="num">2026-10-12 14:36</td>
+                      <td><div class="ops"><a class="link">重置密码</a><a class="link">编辑</a><a class="link danger">停用</a></div></td>
+                    </tr>
+                    <tr>
+                      <td><span class="name">宏发贸易</span><div class="sub">已停止合作</div></td>
+                      <td class="num">hongfa_my</td>
+                      <td>周先生</td><td class="num">133****7788</td>
+                      <td class="sub">zhou@hongfa.example</td>
+                      <td><span class="badge b-off">停用</span></td>
+                      <td class="num sub">2026-08-20 10:12</td>
+                      <td><div class="ops"><a class="link">重置密码</a><a class="link">编辑</a><a class="link">启用</a></div></td>
+                    </tr>
+                  </tbody>
+                </table>
+                <div class="tfoot">
+                  <span>共 48 条 · 每页 20 条</span>
+                  <div class="right pager"><span class="on">1</span><span>2</span><span>3</span><span>›</span></div>
+                </div>
+              </div>
+
+              <div class="alert alert-warn" style="margin-top:12px">
+                <span class="i">!</span>
+                <div><b>停用效果：</b>该供货商账号立即无法登录（含已登录会话失效），其历史询价单与报价数据完整保留、报表仍可查询。</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="screen-head"><b>桌面 · 批量导入弹窗（含错误报告）</b><span class="dev desktop">MODAL</span><span class="hint">预校验 → 确认导入 → 结果报告</span></div>
+    <div class="chrome" style="max-width:900px">
+      <div class="chrome-body" style="position:relative;min-height:640px;background:#F2F4F7">
+        <div class="modal">
+          <div class="dialog lg">
+            <div class="dh"><b>批量导入供货商账号</b><span class="x">×</span></div>
+            <div class="db">
+              <div class="upload" style="margin-bottom:16px">
+                <div class="ic"><svg width="20" height="20" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 11V3m0 0L5 6m3-3l3 3M2 13h12"/></svg></div>
+                <b>已选择：供货商账号导入_20261013.xlsx</b>
+                <div class="hint">52 行数据 · 148 KB · 模板版本 v1</div>
+                <button class="btn btn-secondary btn-sm">重新选择文件</button>
+              </div>
+
+              <div class="stat">
+                <div class="s s-ok"><div class="k">校验通过</div><div class="v">48</div></div>
+                <div class="s s-err"><div class="k">校验失败</div><div class="v">4</div></div>
+                <div class="s s-skip"><div class="k">自动跳过</div><div class="v">0</div></div>
+              </div>
+
+              <div class="alert alert-danger">
+                <span class="i">!</span>
+                <div><b>4 行数据存在问题，无法导入。</b>可先导出错误报告，修正后重新上传；也可选择"仅导入通过的 48 行"。</div>
+              </div>
+
+              <table class="tbl" style="border:1px solid var(--line);border-radius:var(--r-md);overflow:hidden">
+                <thead>
+                  <tr><th style="width:70px">行号</th><th style="width:150px">供货商名称</th><th style="width:150px">登录账号</th><th>失败原因</th></tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td class="num">第 7 行</td><td>永顺五金</td><td class="num">yongshun</td>
+                    <td style="color:var(--danger)">登录账号已存在（与"永顺五金"现有账号重复）</td>
+                  </tr>
+                  <tr>
+                    <td class="num">第 15 行</td><td>德华包装</td><td class="num">dehua_bz</td>
+                    <td style="color:var(--danger)">供货商名称已存在，请选择"复用已有档案"或改名</td>
+                  </tr>
+                  <tr>
+                    <td class="num">第 23 行</td><td><span style="color:var(--ink-300)">（空）</span></td><td class="num">mingyuan</td>
+                    <td style="color:var(--danger)">供货商名称为必填项</td>
+                  </tr>
+                  <tr>
+                    <td class="num">第 41 行</td><td>金鼎机电</td><td class="num">jinding</td>
+                    <td style="color:var(--danger)">邮箱格式不正确：jinding@@163.com</td>
+                  </tr>
+                </tbody>
+              </table>
+
+              <div class="alert alert-info" style="margin-top:12px">
+                <span class="i">i</span>
+                <div><b>导入后规则：</b>所有新账号的密码为模板中填写的初始密码，账号状态为"启用"；<b>首次登录强制修改密码</b>；供货商名称不存在时会自动创建供货商档案。</div>
+              </div>
+            </div>
+            <div class="df">
+              <button class="btn btn-ghost">取消</button>
+              <button class="btn btn-secondary">导出错误报告</button>
+              <button class="btn btn-secondary">仅导入通过的 48 行</button>
+              <button class="btn btn-primary" disabled>确认导入</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="screen-head"><b>手机 390px · 供货商账号</b><span class="dev mobile">MOBILE</span><span class="hint">可查看/启停用/重置密码 · 批量导入引导到 PC</span></div>
+    <div class="phone-row">
+      <div class="phone">
+        <div class="cap">账号管理（手机端）</div>
+        <div class="frame"><div class="pscreen">
+          <div class="notch"><i></i></div>
+          <div class="appbar">
+            <span class="ic"><svg width="17" height="17" viewBox="0 0 16 16" fill="none" stroke="#fff" stroke-width="1.8"><path d="M10 3L5 8l5 5"/></svg></span>
+            <b>账号管理</b>
+          </div>
+          <div class="pbody">
+            <div class="alert alert-info" style="padding:9px 11px">
+              <span class="i">i</span>
+              <div style="font-size:12px"><b>批量导入请在电脑上操作。</b>手机端支持查看账号、启停用与重置密码。</div>
+            </div>
+
+            <div style="display:flex;gap:6px;margin-bottom:10px">
+              <span class="badge" style="padding:4px 11px;background:#fff;border-color:var(--line);color:var(--ink-500)">我方 4</span>
+              <span class="badge b-info" style="padding:4px 11px">供货商 48</span>
+            </div>
+            <input class="input" placeholder="供货商名称 / 登录账号" style="width:100%;height:38px;font-size:14px;margin-bottom:10px">
+
+            <div class="m-card">
+              <div style="display:flex;align-items:flex-start;gap:8px">
+                <span class="t" style="flex:1">恒信文具</span>
+                <span class="badge b-ok">启用</span>
+              </div>
+              <div class="s"><span class="num">hengxin_wenju</span></div>
+              <dl class="dl">
+                <dt>联系人</dt><dd>张经理</dd>
+                <dt>电话</dt><dd>138****6621</dd>
+                <dt>最后登录</dt><dd>10-13 09:24</dd>
+              </dl>
+              <div class="m">
+                <a class="link">重置密码</a><a class="link">编辑</a><a class="link danger">停用</a>
+              </div>
+            </div>
+
+            <div class="m-card">
+              <div style="display:flex;align-items:flex-start;gap:8px">
+                <span class="t" style="flex:1">万隆物资</span>
+                <span class="badge b-warn">未首次登录</span>
+              </div>
+              <div class="s"><span class="num">wanlong_wz</span></div>
+              <dl class="dl">
+                <dt>联系人</dt><dd>赵经理</dd>
+                <dt>电话</dt><dd>135****4417</dd>
+                <dt>最后登录</dt><dd>—</dd>
+              </dl>
+              <div class="m">
+                <a class="link">重置密码</a><a class="link">编辑</a><a class="link danger">停用</a>
+              </div>
+            </div>
+
+            <div class="m-card">
+              <div style="display:flex;align-items:flex-start;gap:8px">
+                <span class="t" style="flex:1">宏发贸易</span>
+                <span class="badge b-off">停用</span>
+              </div>
+              <div class="s"><span class="num">hongfa_my</span> · 已停止合作</div>
+              <dl class="dl">
+                <dt>联系人</dt><dd>周先生</dd>
+                <dt>电话</dt><dd>133****7788</dd>
+              </dl>
+              <div class="m">
+                <a class="link">重置密码</a><a class="link">编辑</a><a class="link">启用</a>
+              </div>
+            </div>
+          </div>
+          <div class="home-ind"><i></i></div>
+        </div></div>
+      </div>
+
+      <div class="notes">
+        <div class="note">
+          <b>为什么批量导入在手机端被隐藏</b>
+          批量导入是"下载模板 → 在电脑上填 → 上传 → 看错误报告 → 改文件再传"的循环，手机上无法完成这个闭环。与其给一个只能上传、改不了文件的残缺入口，不如<b>直接告知去 PC</b>（PRD FR-RWD-14）。
+          <ul>
+            <li>手机上仍保留：查看账号、启停用、重置密码 —— 这三件事在手机上反而更合适（供货商临时登不上，管理员随手处理）。</li>
+            <li>"未首次登录"是一个实用的筛选维度，能快速找出还没激活的供货商，配合线下催办。</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ==================== 3. 档案与字典 ==================== -->
+  <section class="sec">
+    <h2><span class="idx">04-3</span>供货商档案与基础字典</h2>
+    <p>字典是我方侧录入效率的基础：计量单位决定明细行能否选到正确单位，税率决定供货商报价格式，供货商档案决定受邀范围。被引用的字典项<b>只能停用不能删除</b>，否则历史单据无法还原。</p>
+    <div class="frs"><span>FR-MST-01</span><span>FR-MST-02</span><span>FR-MST-03</span><span>FR-MST-04</span></div>
+
+    <div class="screen-head"><b>桌面 1440px · 字典与档案</b><span class="dev desktop">DESKTOP</span><span class="hint">三个字典并列展示</span></div>
+    <div class="chrome">
+      <div class="chrome-bar"><i></i><i></i><i></i><div class="url">http://192.168.1.20/system/dict</div></div>
+      <div class="chrome-body">
+        <div class="app">
+          <aside class="side">
+            <div class="logo"><span class="mark">询</span><b>询价报价系统</b></div>
+            <nav class="nav">
+              <div class="grp">采购管理</div>
+              <a href="#"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 4h12M2 8h12M2 12h8"/></svg>报价单</a>
+              <a href="#"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 13V6M6 13V3M10 13V8M14 13V5"/></svg>报价单统计报表</a>
+              <div class="grp">系统管理</div>
+              <a class="on" href="#"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="5.5" r="2.5"/><path d="M2.5 13.5c0-2.5 2.5-4 5.5-4s5.5 1.5 5.5 4"/></svg>账号管理</a>
+              <a href="#"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 3h10v10H3z"/><path d="M6 7h4M6 10h2"/></svg>操作日志</a>
+            </nav>
+            <div class="foot">v1.1 · 内网部署</div>
+          </aside>
+          <div class="main">
+            <div class="topbar">
+              <div class="crumb">系统管理 / 账号管理 / <b>基础字典</b></div>
+              <div class="spacer"></div>
+              <div class="who"><span class="av">李</span>李主管 · 管理员</div>
+            </div>
+            <div class="page">
+              <div class="page-head">
+                <div><h3>基础字典</h3><p>计量单位 12 项 · 税率 5 项 · 供货商档案 46 家</p></div>
+              </div>
+
+              <div class="two">
+                <div class="card">
+                  <div class="card-head"><b>计量单位</b><div class="right"><button class="btn btn-sm btn-secondary">+ 新增</button></div></div>
+                  <table class="tbl">
+                    <thead><tr><th>单位名称</th><th style="width:80px" class="c">排序</th><th style="width:90px">状态</th><th style="width:120px">操作</th></tr></thead>
+                    <tbody>
+                      <tr><td><span class="name">个</span></td><td class="c num">1</td><td><span class="badge b-ok">启用</span></td><td><div class="ops"><a class="link">编辑</a><a class="link danger">停用</a></div></td></tr>
+                      <tr><td><span class="name">台</span></td><td class="c num">2</td><td><span class="badge b-ok">启用</span></td><td><div class="ops"><a class="link">编辑</a><a class="link danger">停用</a></div></td></tr>
+                      <tr><td><span class="name">套</span></td><td class="c num">3</td><td><span class="badge b-ok">启用</span></td><td><div class="ops"><a class="link">编辑</a><a class="link danger">停用</a></div></td></tr>
+                      <tr><td><span class="name">包</span></td><td class="c num">4</td><td><span class="badge b-ok">启用</span></td><td><div class="ops"><a class="link">编辑</a><a class="link danger">停用</a></div></td></tr>
+                      <tr><td><span class="name">支</span></td><td class="c num">5</td><td><span class="badge b-ok">启用</span></td><td><div class="ops"><a class="link">编辑</a><a class="link danger">停用</a></div></td></tr>
+                      <tr><td><span class="name">桶</span><div class="sub">已被 3 张历史单据引用</div></td><td class="c num">6</td><td><span class="badge b-off">停用</span></td><td><div class="ops"><a class="link">编辑</a><a class="link">启用</a></div></td></tr>
+                    </tbody>
+                  </table>
+                  <div class="tfoot"><span style="color:var(--ink-400)">被单据引用的单位不可删除，只能停用</span></div>
+                </div>
+
+                <div class="card">
+                  <div class="card-head"><b>税率</b><div class="right"><button class="btn btn-sm btn-secondary">+ 新增</button></div></div>
+                  <table class="tbl">
+                    <thead><tr><th>显示名</th><th style="width:110px">税率值</th><th style="width:100px">默认</th><th style="width:90px">状态</th><th style="width:110px">操作</th></tr></thead>
+                    <tbody>
+                      <tr><td><span class="name">13%</span><div class="sub">一般商品</div></td><td class="num">0.1300</td><td><span class="badge b-admin">默认</span></td><td><span class="badge b-ok">启用</span></td><td><div class="ops"><a class="link">编辑</a></div></td></tr>
+                      <tr><td><span class="name">9%</span><div class="sub">运输/部分服务</div></td><td class="num">0.0900</td><td><span class="sub">—</span></td><td><span class="badge b-ok">启用</span></td><td><div class="ops"><a class="link">编辑</a></div></td></tr>
+                      <tr><td><span class="name">6%</span><div class="sub">现代服务</div></td><td class="num">0.0600</td><td><span class="sub">—</span></td><td><span class="badge b-ok">启用</span></td><td><div class="ops"><a class="link">编辑</a></div></td></tr>
+                      <tr><td><span class="name">3%</span><div class="sub">小规模纳税人</div></td><td class="num">0.0300</td><td><span class="sub">—</span></td><td><span class="badge b-ok">启用</span></td><td><div class="ops"><a class="link">编辑</a></div></td></tr>
+                      <tr><td><span class="name">0%</span><div class="sub">免税/出口</div></td><td class="num">0.0000</td><td><span class="sub">—</span></td><td><span class="badge b-ok">启用</span></td><td><div class="ops"><a class="link">编辑</a></div></td></tr>
+                    </tbody>
+                  </table>
+                  <div class="tfoot"><span style="color:var(--ink-400)">供货商报价时默认选中"默认"税率</span></div>
+                </div>
+              </div>
+
+              <div class="card" style="margin-top:14px">
+                <div class="card-head">
+                  <b>供货商档案</b><span class="sub">46 家 · 与账号一对一绑定</span>
+                  <div class="right"><button class="btn btn-sm btn-secondary">导出</button><button class="btn btn-sm btn-secondary">+ 新增档案</button></div>
+                </div>
+                <table class="tbl">
+                  <thead>
+                    <tr><th style="width:150px">供货商名称</th><th style="width:180px">统一社会信用代码</th><th style="width:100px">联系人</th>
+                    <th style="width:130px">联系电话</th><th style="width:190px">邮箱</th><th style="width:110px">绑定账号</th><th style="width:90px">状态</th><th>操作</th></tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td><span class="name">恒信文具</span></td><td class="num sub">91310********521X</td><td>张经理</td>
+                      <td class="num">138****6621</td><td class="sub">zhang@hengxin.example</td>
+                      <td><span class="badge b-ok">已绑定</span></td><td><span class="badge b-ok">启用</span></td>
+                      <td><div class="ops"><a class="link">编辑</a><a class="link danger">停用</a></div></td>
+                    </tr>
+                    <tr>
+                      <td><span class="name">鑫达办公</span></td><td class="num sub">91310********088K</td><td>刘女士</td>
+                      <td class="num">139****3308</td><td class="sub">liu@xinda.example</td>
+                      <td><span class="badge b-ok">已绑定</span></td><td><span class="badge b-ok">启用</span></td>
+                      <td><div class="ops"><a class="link">编辑</a><a class="link danger">停用</a></div></td>
+                    </tr>
+                    <tr>
+                      <td><span class="name">德华包装</span><div class="sub">系统外新增</div></td><td class="sub">—</td><td>吴先生</td>
+                      <td class="num">131****5566</td><td class="sub">—</td>
+                      <td><span class="badge b-warn">未绑定账号</span></td><td><span class="badge b-ok">启用</span></td>
+                      <td><div class="ops"><a class="link">新建账号</a><a class="link">编辑</a><a class="link danger">停用</a></div></td>
+                    </tr>
+                    <tr>
+                      <td><span class="name">宏发贸易</span><div class="sub">已停止合作</div></td><td class="num sub">91310********337M</td><td>周先生</td>
+                      <td class="num">133****7788</td><td class="sub">zhou@hongfa.example</td>
+                      <td><span class="badge b-off">已绑定</span></td><td><span class="badge b-off">停用</span></td>
+                      <td><div class="ops"><a class="link">编辑</a><a class="link">启用</a></div></td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ==================== 4. 操作日志 ==================== -->
+  <section class="sec">
+    <h2><span class="idx">04-4</span>操作日志</h2>
+    <p>本期虽不做通知，但关键动作必须留痕：登录、发布、撤回、截止、报价提交、账号变更。<b>日志只读，任何角色都不可删除</b>（含管理员），保留 ≥12 个月。</p>
+    <div class="frs"><span>FR-LOG-01</span><span>FR-LOG-02</span><span>FR-LOG-03</span><span>FR-LOG-04</span></div>
+
+    <div class="screen-head"><b>桌面 1440px · 操作日志</b><span class="dev desktop">DESKTOP</span><span class="hint">无删除入口 · 支持按动作类型筛选</span></div>
+    <div class="chrome">
+      <div class="chrome-bar"><i></i><i></i><i></i><div class="url">http://192.168.1.20/system/audit-log</div></div>
+      <div class="chrome-body">
+        <div class="app">
+          <aside class="side">
+            <div class="logo"><span class="mark">询</span><b>询价报价系统</b></div>
+            <nav class="nav">
+              <div class="grp">采购管理</div>
+              <a href="#"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 4h12M2 8h12M2 12h8"/></svg>报价单</a>
+              <a href="#"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 13V6M6 13V3M10 13V8M14 13V5"/></svg>报价单统计报表</a>
+              <div class="grp">系统管理</div>
+              <a href="#"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="5.5" r="2.5"/><path d="M2.5 13.5c0-2.5 2.5-4 5.5-4s5.5 1.5 5.5 4"/></svg>账号管理</a>
+              <a class="on" href="#"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 3h10v10H3z"/><path d="M6 7h4M6 10h2"/></svg>操作日志</a>
+            </nav>
+            <div class="foot">v1.1 · 内网部署</div>
+          </aside>
+          <div class="main">
+            <div class="topbar">
+              <div class="crumb">系统管理 / <b>操作日志</b></div>
+              <div class="spacer"></div>
+              <div class="who"><span class="av">李</span>李主管 · 管理员</div>
+            </div>
+            <div class="page">
+              <div class="page-head">
+                <div><h3>操作日志</h3><p>保留 12 个月 · 日志只读</p></div>
+                <div class="actions"><button class="btn btn-secondary">导出日志</button></div>
+              </div>
+
+              <div class="toolbar">
+                <input class="input" type="date" value="2026-10-01" style="width:150px">
+                <input class="input" type="date" value="2026-10-13" style="width:150px">
+                <input class="input" placeholder="操作人" style="width:130px">
+                <select class="select" style="min-width:150px"><option>全部动作类型</option><option>报价提交</option><option>询价单发布</option><option>账号变更</option><option>登录</option></select>
+                <div class="grow"></div>
+                <button class="btn btn-secondary">查询</button>
+              </div>
+
+              <div class="card">
+                <table class="tbl">
+                  <thead>
+                    <tr>
+                      <th style="width:150px">时间</th><th style="width:130px">操作人</th><th style="width:90px">角色</th>
+                      <th style="width:130px">动作类型</th><th>目标对象与摘要</th><th style="width:130px">客户端 IP</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td class="num">10-13 09:41</td><td><span class="name">王采购</span></td><td><span class="badge b-info">采购员</span></td>
+                      <td><span class="badge b-warn">询价单发布</span></td>
+                      <td>发布询价单 <span class="num">RFQ202610120001</span>（办公用品-10月补货询价），分派 5 家供货商</td>
+                      <td class="num sub">192.168.1.35</td>
+                    </tr>
+                    <tr>
+                      <td class="num">10-13 09:24</td><td><span class="name">恒信文具·张经理</span></td><td><span class="badge b-off">供货商</span></td>
+                      <td><span class="badge b-ok">报价保存</span></td>
+                      <td>保存报价（3/8 行）· 修改第 1 行含税单价 118.00 → 113.00</td>
+                      <td class="num sub">10.20.3.88</td>
+                    </tr>
+                    <tr>
+                      <td class="num">10-13 08:51</td><td><span class="name">鑫达办公·刘女士</span></td><td><span class="badge b-off">供货商</span></td>
+                      <td><span class="badge b-ok">报价提交</span></td>
+                      <td>提交报价 <span class="num">RFQ202610120001</span>（8/8 行），含税总额 ¥3,284.00</td>
+                      <td class="num sub">10.20.5.12</td>
+                    </tr>
+                    <tr>
+                      <td class="num">10-13 08:12</td><td><span class="name">李主管</span></td><td><span class="badge b-admin">管理员</span></td>
+                      <td><span class="badge b-off">登录</span></td>
+                      <td>登录成功</td>
+                      <td class="num sub">192.168.1.20</td>
+                    </tr>
+                    <tr>
+                      <td class="num">10-12 17:03</td><td><span class="name">汇通商贸·陈先生</span></td><td><span class="badge b-off">供货商</span></td>
+                      <td><span class="badge b-ok">报价提交</span></td>
+                      <td>提交报价 <span class="num">RFQ202610090003</span>（16/16 行）</td>
+                      <td class="num sub">10.20.7.31</td>
+                    </tr>
+                    <tr>
+                      <td class="num">10-12 12:00</td><td><span class="name">system</span></td><td><span class="sub">—</span></td>
+                      <td><span class="badge b-danger">自动截止</span></td>
+                      <td>询价单 <span class="num">RFQ202610100002</span> 到达截止时间，系统自动置为已截止</td>
+                      <td class="sub">—</td>
+                    </tr>
+                    <tr>
+                      <td class="num">10-12 10:18</td><td><span class="name">李主管</span></td><td><span class="badge b-admin">管理员</span></td>
+                      <td><span class="badge b-warn">账号变更</span></td>
+                      <td>批量导入供货商账号：成功 48 条、失败 4 条</td>
+                      <td class="num sub">192.168.1.20</td>
+                    </tr>
+                    <tr>
+                      <td class="num">10-11 16:05</td><td><span class="name">立诚供应链·孙女士</span></td><td><span class="badge b-off">供货商</span></td>
+                      <td><span class="badge b-ok">报价保存</span></td>
+                      <td>修改 3 行含税单价（第 2/5/9 行）</td>
+                      <td class="num sub">10.20.9.44</td>
+                    </tr>
+                  </tbody>
+                </table>
+                <div class="tfoot">
+                  <span>共 1,286 条 · 每页 50 条</span>
+                  <div class="right pager"><span class="on">1</span><span>2</span><span>3</span><span>›</span></div>
+                </div>
+              </div>
+
+              <div class="alert alert-info" style="margin-top:12px">
+                <span class="i">i</span>
+                <div>日志<b>没有删除入口</b>，管理员也无法清理；导出为 .xlsx 时包含全部字段。系统自动动作（如自动截止）的操作人记为 <span class="num">system</span>。</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    设计稿 04 / 系统管理 · 配套 <b>doc/PRD-询价报价系统.md</b> · <a href="01-design-system.html" style="color:var(--brand-700)">返回索引</a> · <a href="03-pages-supplier.html" style="color:var(--brand-700)">供货商侧 ↑</a>
+  </footer>
+</div>
+</body>
+</html>

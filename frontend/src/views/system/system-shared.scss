@@ -1,0 +1,390 @@
+// ============================================================================
+// 系统管理页公共版式（views/system 内共享）
+// ----------------------------------------------------------------------------
+// 只在 <style scoped lang="scss"> 里 `@use './system-shared';` 使用，
+// 因此这里定义的都是「类」而不是 :root 令牌（令牌由 styles/index.scss 输出一次）。
+// 视觉依据：doc/design/04-pages-admin.html 的 .page-head / .tabs / .card / .stat
+//          / .alert / .tbl / .badge 与 doc/design/01-design-system.html。
+// 硬约束：只引用设计令牌，禁止自创色值；状态一律「圆点 + 文字」。
+// ============================================================================
+@use '@/styles/variables' as v;
+@use '@/styles/breakpoints' as bp;
+
+// —— 页面骨架 ——
+.sys-page {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  max-width: v.$content-max;
+}
+
+.sys-head {
+  display: flex;
+  align-items: flex-start;
+  gap: v.$sp-3;
+  flex-wrap: wrap;
+  margin-bottom: v.$sp-3;
+}
+
+.sys-head__title {
+  font-size: v.$fs-title;
+  font-weight: 600;
+  letter-spacing: -0.015em;
+}
+
+.sys-head__desc {
+  margin-top: 3px;
+  font-size: v.$fs-sm;
+  color: v.$ink-500;
+}
+
+.sys-head__actions {
+  display: flex;
+  align-items: center;
+  gap: v.$sp-2;
+  flex-wrap: wrap;
+
+  // 手机端：操作按钮占满整行、热区 ≥44px（FR-RWD-06）
+  @include bp.mobile {
+    width: 100%;
+
+    .el-button {
+      margin-left: 0;
+      min-height: v.$touch-target;
+    }
+  }
+
+  @include bp.tablet-up {
+    margin-left: auto;
+  }
+}
+
+// —— 页签（设计稿 .tabs，手机端 44px 热区）——
+.sys-tabs {
+  display: flex;
+  align-items: stretch;
+  gap: 2px;
+  margin-bottom: v.$sp-3;
+  border-bottom: 1px solid v.$line;
+  overflow-x: auto;
+  // 手机端允许横向滚动，但不出现整页横向滚动条
+  scrollbar-width: none;
+
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+.sys-tab {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  flex: none;
+  min-height: v.$touch-target;
+  padding: 0 v.$sp-3;
+  font-size: v.$fs-body;
+  font-weight: 600;
+  color: v.$ink-500;
+  white-space: nowrap;
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  cursor: pointer;
+
+  &.is-on {
+    color: v.$brand-700;
+    border-bottom-color: v.$brand-700;
+  }
+
+  &:hover {
+    color: v.$brand-700;
+  }
+}
+
+.sys-tab__count {
+  font-family: v.$font-num;
+  font-size: v.$fs-xs;
+  color: v.$ink-400;
+}
+
+// —— 提示条（设计稿 .alert）——
+.sys-alert {
+  display: flex;
+  align-items: flex-start;
+  gap: v.$sp-2;
+  padding: 11px v.$sp-3;
+  margin-bottom: v.$sp-3;
+  font-size: v.$fs-sm;
+  line-height: 1.6;
+  border: 1px solid;
+  border-radius: v.$r-md;
+
+  b {
+    font-weight: 700;
+  }
+}
+
+.sys-alert__icon {
+  flex: none;
+  font-weight: 800;
+  line-height: 1.4;
+}
+
+.sys-alert--warn {
+  color: #7a4208;
+  background: v.$warn-bg;
+  border-color: v.$warn-line;
+}
+
+.sys-alert--info {
+  color: #154882;
+  background: v.$info-bg;
+  border-color: v.$info-line;
+}
+
+.sys-alert--danger {
+  color: #8e1b12;
+  background: v.$danger-bg;
+  border-color: v.$danger-line;
+}
+
+.sys-alert--ok {
+  color: #0b5c3b;
+  background: v.$ok-bg;
+  border-color: v.$ok-line;
+}
+
+// —— 卡片 ——
+.sys-card {
+  min-width: 0;
+  background: v.$surface;
+  border: 1px solid v.$line;
+  border-radius: v.$r-lg;
+  overflow: hidden;
+}
+
+.sys-card__head {
+  display: flex;
+  align-items: center;
+  gap: v.$sp-2;
+  flex-wrap: wrap;
+  padding: v.$sp-3 v.$sp-4;
+  border-bottom: 1px solid v.$line;
+}
+
+.sys-card__title {
+  font-size: v.$fs-lg;
+  font-weight: 600;
+}
+
+.sys-card__sub {
+  font-size: v.$fs-xs;
+  color: v.$ink-400;
+}
+
+.sys-card__right {
+  display: flex;
+  align-items: center;
+  gap: v.$sp-2;
+
+  @include bp.tablet-up {
+    margin-left: auto;
+  }
+}
+
+.sys-card__body {
+  padding: v.$sp-3 v.$sp-4;
+}
+
+.sys-card__foot {
+  display: flex;
+  align-items: center;
+  gap: v.$sp-2;
+  flex-wrap: wrap;
+  padding: v.$sp-2 v.$sp-4;
+  font-size: v.$fs-sm;
+  color: v.$ink-500;
+  border-top: 1px solid v.$line;
+}
+
+// —— 统计卡（批量导入的 通过/失败/合计）——
+.sys-stat {
+  display: flex;
+  gap: v.$sp-2;
+  margin-bottom: v.$sp-3;
+}
+
+.sys-stat__item {
+  flex: 1;
+  min-width: 0;
+  padding: 10px v.$sp-3;
+  border: 1px solid;
+  border-radius: v.$r-md;
+}
+
+.sys-stat__k {
+  font-size: v.$fs-xs;
+  font-weight: 600;
+}
+
+.sys-stat__v {
+  margin-top: 2px;
+  font-family: v.$font-num;
+  font-size: 20px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.sys-stat__item--ok {
+  color: #0b5c3b;
+  background: v.$ok-bg;
+  border-color: v.$ok-line;
+}
+
+.sys-stat__item--err {
+  color: #8e1b12;
+  background: v.$danger-bg;
+  border-color: v.$danger-line;
+}
+
+.sys-stat__item--skip {
+  color: v.$muted;
+  background: v.$muted-bg;
+  border-color: v.$muted-line;
+}
+
+// —— 数字 / 等宽对齐（金额、编号、时间、IP）——
+.sys-num {
+  font-family: v.$font-num;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+}
+
+.sys-sub {
+  font-size: v.$fs-xs;
+  color: v.$ink-400;
+}
+
+.sys-strong {
+  font-weight: 600;
+}
+
+.sys-danger-text {
+  color: v.$danger;
+}
+
+// —— 行内操作区 ——
+.sys-ops {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: v.$sp-1;
+  flex-wrap: wrap;
+
+  // 手机卡片底部：触控热区 ≥44px、相邻间距 ≥8px（FR-RWD-06）
+  @include bp.mobile {
+    gap: v.$sp-2;
+
+    .el-button {
+      min-height: v.$touch-target;
+      margin-left: 0;
+      padding: 0 v.$sp-3;
+    }
+  }
+}
+
+// —— 宽表横向滚动容器（表格内部滚动，页面本身不横向溢出）——
+.sys-scroll-x {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+// —— 表格式明细表（批量导入错误报告等小表，设计稿 .tbl）——
+.sys-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: v.$fs-sm;
+
+  th {
+    padding: 8px v.$sp-3;
+    font-size: v.$fs-xs;
+    font-weight: 600;
+    color: v.$ink-500;
+    text-align: left;
+    white-space: nowrap;
+    background: v.$surface-sunken;
+    border-bottom: 1px solid v.$line;
+  }
+
+  td {
+    padding: 9px v.$sp-3;
+    color: v.$ink-900;
+    vertical-align: top;
+    border-bottom: 1px solid v.$line-soft;
+    word-break: break-word;
+  }
+
+  tbody tr:last-child td {
+    border-bottom: 0;
+  }
+
+  tbody tr:hover {
+    background: v.$brand-50;
+  }
+
+  .is-center {
+    text-align: center;
+  }
+}
+
+// —— 只读标签 / 说明 ——
+.sys-note {
+  display: flex;
+  align-items: flex-start;
+  gap: v.$sp-2;
+  font-size: v.$fs-xs;
+  color: v.$ink-500;
+  line-height: 1.6;
+}
+
+.sys-req {
+  color: v.$danger;
+}
+
+.sys-field-hint {
+  margin-top: 4px;
+  font-size: v.$fs-xs;
+  color: v.$ink-400;
+  line-height: 1.5;
+}
+
+// —— 弹窗内表单：手机端输入框 ≥16px 防 iOS 聚焦缩放（FR-RWD-08）——
+.sys-form {
+  @include bp.mobile {
+    :deep(.el-input__inner),
+    :deep(.el-textarea__inner) {
+      font-size: v.$fs-input-mobile;
+    }
+  }
+}
+
+// —— 手机端兜底：按钮热区 ≥44×44（FR-RWD-06）——
+// Element Plus 的 .el-button--small 默认只有 36px 高（字典页的「+ 新增」实测 66×36），
+// 这里统一抬到 $touch-target。徽标换行问题由 DataTable 组件层解决（fe-base 负责），
+// 本页不再对 .status-badge 做特殊处理。
+// 注意：teleport 到 body 的弹窗/抽屉（el-dialog / el-drawer）不在 .sys-page 内，
+//       它们的按钮尺寸由各自组件（FilterDrawer）自行保证 ≥44px。
+@include bp.mobile {
+  .sys-page {
+    :deep(.el-button) {
+      min-height: v.$touch-target;
+    }
+
+    :deep(.el-button--small) {
+      min-height: v.$touch-target;
+      padding: 0 v.$sp-3;
+    }
+  }
+}

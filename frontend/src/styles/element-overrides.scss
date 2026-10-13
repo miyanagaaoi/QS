@@ -1,0 +1,232 @@
+// ============================================================================
+// Element Plus 主题覆写
+// ----------------------------------------------------------------------------
+// 为什么用 `:root:root` 提升特异性：
+//   Element Plus 自身的变量声明选择器是 `:root`（特异性 0,1,0），而按需引入
+//   （unplugin-vue-components）产生的组件样式属于异步 chunk，加载顺序晚于本文件。
+//   同特异性下后者胜出，主题会被覆盖回默认蓝紫。`:root:root`（0,2,0）可稳定胜出，
+//   且无需 !important。仅在无法用特异性解决时（EP 写死的行内 style）才用 !important。
+// ============================================================================
+@use './variables' as v;
+@use './breakpoints' as bp;
+
+:root:root {
+  // —— 主色：深墨青 ——
+  --el-color-primary: #{v.$brand-700};
+  --el-color-primary-dark-2: #{v.$brand-800};
+  --el-color-primary-light-3: #{v.$brand-600};
+  --el-color-primary-light-5: #{v.$brand-600};
+  --el-color-primary-light-7: #{v.$brand-100};
+  --el-color-primary-light-8: #{v.$brand-100};
+  --el-color-primary-light-9: #{v.$brand-50};
+
+  // —— 语义状态色（与设计系统第 02 节一致）——
+  --el-color-success: #{v.$ok};
+  --el-color-success-light-3: #{v.$ok-line};
+  --el-color-success-light-9: #{v.$ok-bg};
+  --el-color-warning: #{v.$warn};
+  --el-color-warning-light-3: #{v.$warn-line};
+  --el-color-warning-light-9: #{v.$warn-bg};
+  --el-color-danger: #{v.$danger};
+  --el-color-danger-light-3: #{v.$danger-line};
+  --el-color-danger-light-9: #{v.$danger-bg};
+  --el-color-error: #{v.$danger};
+  --el-color-error-light-3: #{v.$danger-line};
+  --el-color-error-light-9: #{v.$danger-bg};
+  --el-color-info: #{v.$info};
+  --el-color-info-light-3: #{v.$info-line};
+  --el-color-info-light-9: #{v.$info-bg};
+
+  // —— 文字 / 边框 / 填充 ——
+  --el-text-color-primary: #{v.$ink-900};
+  --el-text-color-regular: #{v.$ink-700};
+  --el-text-color-secondary: #{v.$ink-500};
+  --el-text-color-placeholder: #{v.$ink-300};
+  --el-text-color-disabled: #{v.$ink-300};
+  --el-border-color: #{v.$line};
+  --el-border-color-light: #{v.$line};
+  --el-border-color-lighter: #{v.$line-soft};
+  --el-border-color-extra-light: #{v.$line-soft};
+  --el-border-color-dark: #{v.$line-strong};
+  --el-border-color-darker: #{v.$line-strong};
+  --el-fill-color: #{v.$surface-hover};
+  --el-fill-color-light: #{v.$surface-sunken};
+  --el-fill-color-lighter: #{v.$surface-sunken};
+  --el-fill-color-blank: #{v.$surface};
+  --el-bg-color: #{v.$surface};
+  --el-bg-color-page: #{v.$surface-sunken};
+  --el-bg-color-overlay: #{v.$surface};
+
+  // —— 形状 / 字体 / 尺寸 ——
+  --el-border-radius-base: #{v.$r-md};
+  --el-border-radius-small: #{v.$r-sm};
+  --el-font-family: #{v.$font};
+  --el-font-size-base: #{v.$fs-body};
+  --el-font-size-small: #{v.$fs-sm};
+  --el-font-size-large: #{v.$fs-lg};
+  --el-component-size: 34px;
+  --el-component-size-small: 28px;
+  --el-component-size-large: 42px;
+  --el-box-shadow-light: #{v.$sh-1};
+  --el-box-shadow: #{v.$sh-2};
+  --el-box-shadow-dark: #{v.$sh-3};
+  --el-disabled-bg-color: #{v.$surface-sunken};
+
+  // 表格（设计稿：行高紧凑 40px、表头浅灰、数字等宽右对齐）
+  --el-table-border-color: #{v.$line};
+  --el-table-header-bg-color: #{v.$surface-sunken};
+  --el-table-header-text-color: #{v.$ink-500};
+  --el-table-text-color: #{v.$ink-900};
+  --el-table-row-hover-bg-color: #{v.$brand-50};
+
+  // 组件内部文案统一
+  --el-form-label-color: #{v.$ink-700};
+  --el-drawer-padding-primary: #{v.$sp-4};
+}
+
+// ---------------------------------------------------------------------------
+// 组件级微调
+// —— `html body` 前缀同样是特异性手段（1 倍类 + 2 元素），用于盖过 EP 的
+//    `.el-xxx .el-yyy` 规则，而不使用 !important。
+// ---------------------------------------------------------------------------
+html body {
+  .el-table {
+    font-size: v.$fs-sm;
+
+    .el-table__cell {
+      padding: 9px 0; // 行高 ≈ 40px
+    }
+
+    th.el-table__cell {
+      font-size: v.$fs-xs;
+      font-weight: 600;
+    }
+
+    .cell {
+      line-height: 1.45;
+      word-break: break-word;
+    }
+
+    .cell.num,
+    .cell .num {
+      font-family: v.$font-num;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .el-table__inner-wrapper::before {
+      background-color: v.$line;
+    }
+  }
+
+  .el-button {
+    font-weight: 600;
+    border-radius: v.$r-md;
+  }
+
+  .el-input,
+  .el-select,
+  .el-date-editor {
+    --el-input-height: 36px;
+  }
+
+  .el-input__wrapper,
+  .el-select__wrapper {
+    min-height: 36px;
+  }
+
+  .el-drawer__body {
+    padding: v.$sp-4;
+  }
+
+  .el-drawer__header {
+    margin-bottom: 0;
+    padding: v.$sp-3 v.$sp-4;
+    border-bottom: 1px solid v.$line;
+    color: v.$ink-900;
+    font-weight: 600;
+  }
+
+  .el-form-item__label {
+    font-size: v.$fs-sm;
+    font-weight: 600;
+  }
+
+  .el-pagination {
+    justify-content: flex-end;
+    --el-pagination-font-size: #{v.$fs-sm};
+  }
+
+  .el-loading-mask {
+    background-color: rgba(255, 255, 255, 0.72);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// 手机端（< 768px）：输入字号 ≥16px 防 iOS 聚焦放大（FR-RWD-08）、
+// 触控热区 ≥44px（FR-RWD-06）、弹窗不用超宽桌面形态
+// ---------------------------------------------------------------------------
+@include bp.mobile {
+  html body {
+    // 16px 是硬要求：iOS Safari 对 font-size < 16px 的输入框会自动放大整页
+    .el-input .el-input__inner,
+    .el-input-number .el-input__inner,
+    .el-textarea .el-textarea__inner,
+    .el-select .el-select__wrapper,
+    .el-date-editor .el-input__inner,
+    input,
+    textarea {
+      font-size: v.$fs-input-mobile;
+    }
+
+    .el-button {
+      min-height: v.$touch-target;
+      padding-left: 14px;
+      padding-right: 14px;
+    }
+
+    .el-button--small {
+      min-height: 36px;
+    }
+
+    .el-pagination button,
+    .el-pager li {
+      min-width: v.$touch-target;
+      height: v.$touch-target;
+    }
+
+    // EP 把宽度写在行内 style 上，只能用 !important 覆盖为手机形态
+    .el-dialog {
+      width: calc(100% - #{v.$sp-4}) !important;
+      margin: 6vh auto !important;
+      max-height: 88vh;
+    }
+
+    .el-dialog__body {
+      max-height: 60vh;
+      overflow: auto;
+    }
+
+    .el-message-box {
+      width: calc(100% - #{v.$sp-4}) !important;
+      max-width: 420px;
+    }
+
+    .el-message {
+      width: calc(100% - #{v.$sp-4});
+      min-width: 0;
+      max-width: 420px;
+    }
+
+    // 手机端二次确认：按钮纵向排列，取消在下方易达位（PRD 10.4）
+    .el-message-box__btns {
+      display: flex;
+      flex-direction: column-reverse;
+      gap: v.$sp-2;
+
+      .el-button {
+        margin-left: 0 !important;
+        width: 100%;
+      }
+    }
+  }
+}
