@@ -65,6 +65,13 @@ export default defineConfig(({ mode }) => {
       },
       proxy: {
         '/api': { target: proxyTarget, changeOrigin: true },
+        // 后端接口文档与 OpenAPI 描述也要转发到后端。
+        // 否则它们会落到 Vite 的 SPA 回退上：返回 index.html（HTTP 200），
+        // Vue Router 找不到 /docs 路由 → 前端渲染 404 页面，看起来像"接口文档 404"。
+        // 生产环境的 nginx 已代理这三个路径（见 frontend/nginx.conf），此处与之对齐。
+        '/docs': { target: proxyTarget, changeOrigin: true },
+        '/redoc': { target: proxyTarget, changeOrigin: true },
+        '/openapi.json': { target: proxyTarget, changeOrigin: true },
       },
     },
     build: {
