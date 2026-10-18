@@ -59,6 +59,8 @@ const { isMobile } = useBreakpoint()
 const rfqId = ref(Number(route.params.id) || 0)
 const detail = ref(null)
 const assignees = ref([])
+// 无权访问（数据隔离：他人创建的单据）
+const denied = ref(false)
 const supplierOptions = ref([])
 const loading = ref(false)
 const busy = ref(false)
@@ -113,6 +115,7 @@ const headSub = computed(() => {
 async function load() {
   if (!rfqId.value) return
   loading.value = true
+  denied.value = false
   try {
     const [detailData, progressData] = await Promise.all([
       getRfq(rfqId.value),
@@ -131,8 +134,16 @@ async function load() {
       if (diff !== 0) return diff
       return String(a.supplier_name).localeCompare(String(b.supplier_name), 'zh-CN')
     })
-  } catch {
-    // request.js 已统一 Toast
+  } catch (error) {
+    // 数据隔离：非管理员访问他人单据会拿到 40300。
+    // 此前这里是静默 catch，页面会停留在空态并显示"暂无受邀供货商"，
+    // 容易被误解成"单据存在但没有供货商"，因此单独标记出来给出明确提示。
+    if (error?.code === 40300 || error?.forbidden || error?.status === 403) {
+      denied.value = true
+      detail.value = null
+      assignees.value = []
+    }
+    // 其余错误 request.js 已统一 Toast
   } finally {
     loading.value = false
   }
@@ -351,6 +362,17 @@ onMounted(async () => {
 
 <template>
   <div class="rfq-progress">
+    <!-- 数据隔离：非管理员访问他人创建的单据会收到 40300。
+         明确告知"无权访问"而不是显示空态，避免误以为单据没有受邀供货商。 -->
+    <div v-if="denied" class="denied-card">
+      <h2 class="denied-card__title">无权访问该询价单</h2>
+      <p class="denied-card__desc">
+        该单据由其他人员创建，当前账号（我方账号）只能查看和操作自己发出的询价单。
+        如需协作，请联系管理员或由单据创建人操作。
+      </p>
+      <el-button type="primary" @click="router.push('/purchase/rfq')">返回报价单列表</el-button>
+    </div>
+    <template v-else>
     <header class="page-head">
       <div class="page-head__main">
         <h2 class="page-head__title">
@@ -631,6 +653,7 @@ onMounted(async () => {
         </div>
       </template>
     </el-drawer>
+    </template>
   </div>
 </template>
 
@@ -643,6 +666,33 @@ onMounted(async () => {
   display: flex;
   flex-direction: column;
   gap: v.$sp-3;
+}
+
+// —— 无权访问（数据隔离）——
+.denied-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: v.$sp-3;
+  padding: v.$sp-5;
+  background: v.$surface;
+  border: 1px solid v.$line;
+  border-left: 3px solid v.$danger;
+  border-radius: v.$r-md;
+}
+
+.denied-card__title {
+  margin: 0;
+  font-size: v.$fs-lg;
+  font-weight: 600;
+  color: v.$danger;
+}
+
+.denied-card__desc {
+  margin: 0;
+  font-size: v.$fs-sm;
+  line-height: 1.7;
+  color: v.$ink-500;
 }
 
 // —— 页头 ——
@@ -936,6 +986,16 @@ onMounted(async () => {
 @include bp.mobile {
   .rfq-progress {
     padding-bottom: calc(v.$bottom-bar-h + 24px);
+  }
+
+  .denied-card {
+    padding: v.$sp-4;
+
+    // FR-RWD-06：移动端可点击元素 ≥44px
+    :deep(.el-button) {
+      width: 100%;
+      min-height: v.$touch-target;
+    }
   }
 
   .page-head__actions {

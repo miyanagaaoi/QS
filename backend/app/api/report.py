@@ -65,6 +65,18 @@ def _err(status_code: int, code: int, message: str) -> HTTPException:
 
 
 # --------------------------------------------------------------------------
+# 数据隔离：非管理员只能看到/统计自己创建的询价单（PRD 3.3-4）
+# --------------------------------------------------------------------------
+def _owner_scope(user: User) -> int | None:
+    """返回需要限定的创建人 ID；None 表示不限（管理员）。
+
+    采购员之间必须互相看不到对方发出的询价，这是服务端强制的边界：
+    前端隐藏菜单/按钮只是体验，不能作为隔离手段。
+    """
+    return None if user.role == "admin" else user.id
+
+
+# --------------------------------------------------------------------------
 # 查询参数容错（前端清空筛选条件时会把 "" 透传上来，必须按「未传」处理）
 # --------------------------------------------------------------------------
 def _blank_to_none(value: str | None) -> str | None:
@@ -362,11 +374,18 @@ def build_summary(
     rfq_id: int | None = None,
     status: str | None = None,
     only_unquoted: bool = False,
+    owner_id: int | None = None,
 ) -> SummaryResult:
-    """组装视图 B 汇总统计（按报价截止时间筛选，PRD 5.3.1）。"""
+    """组装视图 B 汇总统计（按报价截止时间筛选，PRD 5.3.1）。
+
+    owner_id 不为空时只统计该创建人的单据 —— 供非管理员（采购员）做数据隔离：
+    采购员只能看到自己发出的询价，管理员传 None 表示不限（PRD 3.3-4）。
+    """
     start, end = _resolve_range(date_from, date_to)
 
     rfq_stmt = select(Rfq.id, Rfq.project, Rfq.deadline)
+    if owner_id is not None:
+        rfq_stmt = rfq_stmt.where(Rfq.created_by == owner_id)
     if rfq_id:
         rfq_stmt = rfq_stmt.where(Rfq.id == rfq_id)
     if start is not None:
@@ -560,6 +579,8 @@ def summary(
         rfq_id=_parse_int_param(rfq_id, "rfq_id"),
         status=_blank_to_none(status),
         only_unquoted=_parse_bool_param(only_unquoted, False, "only_unquoted"),
+        # 数据隔离：非管理员只能统计自己创建的询价单
+        owner_id=_owner_scope(user),
     )
     return Envelope(data=result)
 
@@ -584,6 +605,8 @@ def summary_export(
         supplier_ids=_parse_supplier_ids(supplier_ids),
         rfq_id=_parse_int_param(rfq_id, "rfq_id"),
         status=_blank_to_none(status),
+        # 导出与页面口径必须一致，否则会出现"页面看不到、导出的 Excel 里却有"
+        owner_id=_owner_scope(user),
     )
     content = exporter.build_summary_export(result)
     filename = exporter.summary_export_filename()

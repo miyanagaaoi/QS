@@ -45,6 +45,7 @@ import StatusBadge from '@/components/StatusBadge.vue'
 import { listRfqs } from '@/api/rfq'
 import { exportSummary, getRfqComparison, getSummary } from '@/api/report'
 import { useBreakpoint } from '@/composables/useBreakpoint'
+import { useUserStore } from '@/stores/user'
 import {
   formatMoney,
   formatQty,
@@ -57,6 +58,7 @@ defineOptions({ name: 'RfqReport' })
 
 const route = useRoute()
 const { isMobile } = useBreakpoint()
+const userStore = useUserStore()
 
 // ---------------------------------------------------------------------------
 // 状态
@@ -373,6 +375,9 @@ onMounted(async () => {
             {{ comparison ? `${comparison.title} · ${comparison.rfq_no}` : '数据实时计算 · 供货商保存报价后刷新即可见' }}
           </template>
           <template v-else>{{ summaryHead || '数据实时计算' }}</template>
+          <!-- 采购员的数据范围由服务端强制收窄（只能统计自己创建的询价单），
+               这里明确告知，避免误以为报表漏数据 -->
+          <span v-if="!userStore.isAdmin" class="page-head__scope">统计范围：仅我创建的单据</span>
         </p>
       </div>
       <div class="page-head__actions">
@@ -804,6 +809,18 @@ onMounted(async () => {
   margin-top: 3px;
   font-size: v.$fs-sm;
   color: v.$ink-500;
+}
+
+/* 非管理员的数据范围提示：与副标题同行，弱化处理但保证可读 */
+.page-head__scope {
+  display: inline-block;
+  margin-left: 10px;
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: v.$info-bg;
+  color: v.$info;
+  font-size: v.$fs-xs;
+  white-space: nowrap;
 }
 
 .page-head__actions {

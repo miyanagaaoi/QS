@@ -71,6 +71,8 @@ function newKey() {
 const rfqId = ref(route.params.id ? Number(route.params.id) : null)
 const detail = ref(null)
 const loading = ref(true)
+// 无权访问（数据隔离：他人创建的单据）
+const denied = ref(false)
 const saving = ref(false)
 const publishing = ref(false)
 const withdrawing = ref(false)
@@ -708,6 +710,7 @@ function applyDetail(data) {
 
 async function load() {
   loading.value = true
+  denied.value = false
   try {
     if (rfqId.value) {
       const data = await getRfq(rfqId.value)
@@ -718,8 +721,14 @@ async function load() {
       lines.value = [emptyLine()]
       errors.value = []
     }
-  } catch {
-    // request.js 统一 Toast；不覆盖用户已录入内容
+  } catch (error) {
+    // 数据隔离：非管理员打开他人单据会拿到 40300。
+    // 不标记出来的话，页面会显示成一张空表单，看起来像"新建"，容易误导。
+    if (error?.code === 40300 || error?.forbidden || error?.status === 403) {
+      denied.value = true
+      detail.value = null
+    }
+    // 其余错误 request.js 统一 Toast；不覆盖用户已录入内容
   } finally {
     loading.value = false
   }
@@ -787,6 +796,16 @@ onMounted(async () => {
 
 <template>
   <div class="rfq-edit">
+    <!-- 数据隔离：非管理员打开他人创建的单据会收到 40300，明确提示而不是显示空表单 -->
+    <div v-if="denied" class="denied-card">
+      <h2 class="denied-card__title">无权访问该询价单</h2>
+      <p class="denied-card__desc">
+        该单据由其他人员创建，当前账号只能查看和编辑自己发出的询价单。
+        如需协作，请联系管理员或由单据创建人操作。
+      </p>
+      <el-button type="primary" @click="router.push('/purchase/rfq')">返回报价单列表</el-button>
+    </div>
+    <template v-else>
     <header class="page-head">
       <div class="page-head__main">
         <h2 class="page-head__title">
@@ -1396,6 +1415,7 @@ onMounted(async () => {
         </div>
       </template>
     </el-dialog>
+    </template>
   </div>
 </template>
 
@@ -1411,6 +1431,33 @@ onMounted(async () => {
 }
 
 // —— 页头 ——
+// —— 无权访问（数据隔离）——
+.denied-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: v.$sp-3;
+  padding: v.$sp-5;
+  background: v.$surface;
+  border: 1px solid v.$line;
+  border-left: 3px solid v.$danger;
+  border-radius: v.$r-md;
+}
+
+.denied-card__title {
+  margin: 0;
+  font-size: v.$fs-lg;
+  font-weight: 600;
+  color: v.$danger;
+}
+
+.denied-card__desc {
+  margin: 0;
+  font-size: v.$fs-sm;
+  line-height: 1.7;
+  color: v.$ink-500;
+}
+
 .page-head {
   display: flex;
   align-items: flex-start;
@@ -1943,6 +1990,15 @@ onMounted(async () => {
 
 // —— 响应式 ——
 @include bp.mobile {
+  .denied-card {
+    padding: v.$sp-4;
+
+    // FR-RWD-06：移动端可点击元素 ≥44px
+    :deep(.el-button) {
+      width: 100%;
+      min-height: v.$touch-target;
+    }
+  }
   .rfq-edit {
     padding-bottom: calc(v.$bottom-bar-h + 74px);
   }

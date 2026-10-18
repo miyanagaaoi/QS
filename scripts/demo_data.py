@@ -330,29 +330,33 @@ def main() -> int:
     for gi, group in enumerate(GROUPS, start=1):
         target_status = group.get("status", "closed")
         due_days = group["due_days"]
-        # 时间自洽原则：单号里的日期 = created_at 的日期。单号由后端按创建日期生成
-        # （RFQ + YYYYMMDD + 序号），若把 created_at 回填成过去就会与单号矛盾
-        # （编号 1013 但创建时间 08-31）。因此创建时间统一取今天，
-        # 用**截止时间**来区分状态：负值 → 已截止；正值 → 进行中。
+        # 时间线设计（三者必须满足 created_at < deadline 且状态自洽）：
+        #   已截止：created_at 回退到 |due_days| 天前，deadline 落在 created_at 与 now 之间
+        #   进行中：created_at 近几天，deadline 在未来
+        #   草稿  ：created_at 过去，无 deadline
         #
-        # 注意：发布时截止时间必须晚于当前时间（发布校验），所以这里先给未来值，
-        # 稍后再用 DB 把"已截止"那些单据的 deadline 回填到过去，
-        # 由系统的惰性判定置为已截止（顺带验证了"截止时间已过即已截止"这条规则）。
-        created_at = min(
-            datetime.now().replace(hour=8, minute=30, second=0, microsecond=0),
-            datetime.now() - timedelta(hours=1),
-        )
+        # 注意：单号由后端按创建时写入日期（RFQ+YYYYMMDD+序号），
+        # 因此稍后会把 created_at 回填成历史日期时，**必须同步改写单号日期**，
+        # 否则会出现"单号 1019 / 创建时间 1011"矛盾（见 [4]）。
+        now = datetime.now()
         if target_status == "closed":
+            created_at = (now - timedelta(days=abs(due_days))).replace(
+                hour=9, minute=20, second=0, microsecond=0
+            )
             deadline = (datetime.now() + timedelta(days=2)).replace(
                 hour=17, minute=0, second=0, microsecond=0
             )
         elif target_status == "published":
-            # 进行中：截止时间放在未来，且各单据错开（小时偏移随单据变化）
-            hours = 4 + (hash(group["project"]) % 9)
-            deadline = (datetime.now() + timedelta(days=abs(due_days), hours=hours)).replace(
-                minute=0, second=0, microsecond=0
+            created_at = (now - timedelta(days=2 + (gi % 3))).replace(
+                hour=9, minute=40, second=0, microsecond=0
             )
+            deadline = (
+                now + timedelta(days=abs(due_days), hours=3 + (gi % 6))
+            ).replace(minute=0, second=0, microsecond=0)
         else:
+            created_at = (now - timedelta(days=2)).replace(
+                hour=15, minute=10, second=0, microsecond=0
+            )
             deadline = None
 
         sup_ids = [suppliers[i]["id"] for i in group["sups"] if i < len(suppliers)]
@@ -527,10 +531,14 @@ def main() -> int:
             if any((a.quoted_line_count or 0) > 0 for a in assigns):
                 say(f"  {rfq.rfq_no} 已有报价，跳过")
                 continue
-            # 单号是 seed 时按"那一天"生成的（RFQ + 日期 + 序号），
-            # 所以创建时间不能回填成别的日期，否则"单号 1013 / 创建时间 0831"自相矛盾。
-            # 统一对齐到今天，只保留时间上的先后（早于演示单据的 09:30）。
-            rfq.created_at = datetime.now().replace(hour=8, minute=5, second=0, microsecond=0)
+            # 种子单据的单号是建库当天生成的（RFQ + 日期 + 序号），日期已固定。
+            # 因此这里把创建时间对齐到**单号里的那一天**，而不是今天，
+            # 否则会出现"单号 1013 / 创建时间 1019"这类矛盾。
+            try:
+                no_date = datetime.strptime(rfq.rfq_no[3:11], "%Y%m%d")
+            except (ValueError, IndexError):
+                no_date = datetime.now()
+            rfq.created_at = no_date.replace(hour=9, minute=10, second=0, microsecond=0)
             db.commit()
 
             rid = rfq.id
@@ -572,39 +580,61 @@ def main() -> int:
     finally:
         db.close()
 
-    say("\n[4] 收尾：回填时间分布 + 把已截止的单据置为过去")
+    say("\n[4] 收尾：回填历史时间（创建时间 + 单号日期一起改）+ 把已截止的单据置为过去")
     # 顺序很关键：报价必须在"截止时间回填到过去"之前完成（截止后禁止再报价）。
     #
-    # 1) created_at / published_at 回填成 days_ago 天前，让列表与报表的时间分布自然；
-    # 2) 目标为 closed 的单据，把 deadline 回填到过去 —— 系统的惰性判定会把它自动
-    #    视为已截止（同时验证了"截止时间已过即已截止"这条规则），无需手动调截止接口。
+    # 关键约束（踩过坑）：单号格式是 RFQ + YYYYMMDD + 序号，日期由后端在创建时写入。
+    # 若只把 created_at 回填到过去，就会出现"单号 1019 / 创建时间 1011"的矛盾；
+    # 而若保持 created_at=今天，则"已截止"单据的 deadline 无处安放
+    # （deadline 必须晚于创建时间且早于现在，只剩不到一小时窗口）。
+    # 因此历史单据必须**同时**回填 created_at 与单号里的日期，并保证同一天序号不冲突。
     db = SessionLocal()
     try:
         now = datetime.now()
         closed_n = 0
+        # 同一天的单号序号分配：先从库里已有单号推出各日期的最大序号，再顺延，
+        # 避免改号后与既有单据（如 seed 的 0001~0003）撞号。
+        used: dict[str, set[str]] = {}
+        for existing in db.scalars(select(Rfq.rfq_no)).all():
+            if existing and len(existing) >= 12:
+                used.setdefault(existing[3:11], set()).add(existing[11:])
+
         for detail in created:
             rfq = db.get(Rfq, detail["id"])
             if not rfq:
                 continue
+            target_date = detail["created_at"].date()
+            key = target_date.strftime("%Y%m%d")
+            seq_pool = used.setdefault(key, set())
+            seq = 1
+            while f"{seq:04d}" in seq_pool:
+                seq += 1
+            seq_pool.add(f"{seq:04d}")
+            rfq.rfq_no = f"RFQ{key}{seq:04d}"
             rfq.created_at = detail["created_at"]
             if rfq.status != "draft":
                 rfq.published_at = detail["created_at"] + timedelta(hours=2)
             if detail["target_status"] == "closed":
-                # 截止时间 = 当前时刻往前倒推（天 + 小时偏移），并归到整点。
-                # 小时偏移与单据 id 相关，避免多张单据的截止时间撞在同一时刻。
-                # 倒推保证一定早于当前时间；末尾再兜一次"晚于创建时间"。
-                days_back = abs(int(detail["group"]["due_days"])) or 3
-                past_deadline = (
-                    now - timedelta(days=days_back, hours=6 + (rfq.id % 7))
-                ).replace(minute=0, second=0, microsecond=0)
+                # deadline = min(创建后 13 天, 昨天 17:00)，再兜一次"必须晚于创建时间"。
+                # 这样：历史单据（创建于 8~20 天前）自然早于现在；
+                # 创建得较近的（如 8 天前）也落在昨天，不会越过当前时间。
+                past_deadline = (detail["created_at"] + timedelta(days=13)).replace(
+                    hour=17, minute=0, second=0, microsecond=0
+                )
+                cap = (now - timedelta(days=1)).replace(
+                    hour=17, minute=0, second=0, microsecond=0
+                )
+                if past_deadline > cap:
+                    past_deadline = cap
                 if past_deadline <= rfq.created_at:
-                    past_deadline = rfq.created_at + timedelta(hours=2 + (rfq.id % 5))
+                    # 创建时间非常接近现在时（理论上不该出现），退到创建后 1 小时
+                    past_deadline = rfq.created_at + timedelta(hours=1)
                 rfq.deadline = past_deadline
                 rfq.status = "closed"
                 rfq.closed_at = past_deadline + timedelta(minutes=12)
                 closed_n += 1
         db.commit()
-        say(f"  已回填 {len(created)} 张单据的时间；{closed_n} 张置为已截止（deadline 在过去）")
+        say(f"  已回填 {len(created)} 张单据的创建时间与单号；{closed_n} 张置为已截止")
     finally:
         db.close()
 
