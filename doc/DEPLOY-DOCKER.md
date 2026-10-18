@@ -78,9 +78,14 @@ docker run -d --name xunjia-app -p 8000:8000 \
 交付演示或功能验收前，可一键生成一套覆盖各状态的实例数据：
 
 ```bash
-# 需后端已启动；脚本全程走 API，可重复运行（每次先清理旧的演示数据）
+# 需后端已启动；主流程走 API，可重复运行（每次先清理旧的演示数据）
 python scripts/demo_data.py                                  # 默认 http://127.0.0.1:8000
-python scripts/demo_data.py --base http://127.0.0.1:18000    # 单镜像容器
+
+# 目标是容器时，必须用 --db-url 指向容器**挂载出来**的库文件：
+# 清理旧演示单据、回填历史时间这几步没有对应 API（有报价的单据不允许通过接口删除），
+# 只能直连数据库；不指定的话会作用到本机默认库上，导致"接口在容器、DB 在本机"的错配。
+docker run -d --name xunjia-app -p 8000:8000   -v /opt/xunjia/data:/app/backend/data ... xunjia:1.0
+python scripts/demo_data.py --base http://127.0.0.1:8000   --db-url sqlite:////opt/xunjia/data/xunjia.db
 ```
 
 生成内容：11 张询价单（6 张已截止 / 3 张进行中，其中 2 张只报了一半用于催办场景 /

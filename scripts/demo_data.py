@@ -215,7 +215,7 @@ GROUPS = [
 TAX_RATES = ["0.1300", "0.1300", "0.1300", "0.0900", "0.0600", "0.0300"]
 
 
-def clear_previous() -> int:
+def clear_previous(session_factory) -> int:
     """删除上一次生成的演示单据（标题以 PREFIX 开头）。
 
     通过 DB 直接清理，原因：
@@ -228,7 +228,6 @@ def clear_previous() -> int:
     """
     from sqlalchemy import delete, select
 
-    from app.database import SessionLocal  # noqa: PLC0415
     from app.models import (  # noqa: PLC0415
         QuoteHistory,
         QuoteLine,
@@ -237,7 +236,7 @@ def clear_previous() -> int:
         RfqSupplier,
     )
 
-    db = SessionLocal()
+    db = session_factory()
     try:
         rfqs = db.scalars(select(Rfq).where(Rfq.title.like(f"{PREFIX}%"))).all()
         if not rfqs:
@@ -263,11 +262,37 @@ def main() -> int:
     ap.add_argument("--base", default="http://127.0.0.1:8000")
     ap.add_argument("--admin-user", default="admin")
     ap.add_argument("--admin-password", default="Admin@2026")
+    # 少数步骤（清理旧演示单据、回填历史时间）必须直接操作数据库，
+    # 因为它们没有对应的 API（且有报价的单据不允许通过接口删除）。
+    # 当目标是容器/远程实例时，必须显式指定它背后的库，否则会打到本机默认库上，
+    # 出现"接口在容器、DB 在本机"的错配（曾导致容器内演示单据没有报价）。
+    ap.add_argument(
+        "--db-url",
+        default=None,
+        help="直连数据库 URL（如 sqlite:///D:/data/xunjia.db）。默认取 backend/.env 配置",
+    )
     args = ap.parse_args()
+
+    # 解析实际使用的 DB：显式 --db-url 优先，否则用应用配置
+    import pathlib
+
+    sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1] / "backend"))
+    from sqlalchemy import create_engine
+    from sqlalchemy.orm import sessionmaker
+
+    from app.config import settings  # noqa: PLC0415
+
+    db_url = args.db_url or settings.resolved_database_url()
+    engine = create_engine(db_url, future=True)
+    Session = sessionmaker(bind=engine, future=True)
 
     say("=" * 62)
     say(f" 生成展示用实例数据  目标: {args.base}")
+    say(f" 直连数据库        : {db_url}")
     say("=" * 62)
+    if args.db_url is None and "127.0.0.1" not in args.base and "localhost" not in args.base:
+        say("  ⚠ 目标不是本机 8000，但未指定 --db-url：清理/回填会作用在本机默认库上。")
+        say("    若目标是容器，请加 --db-url 指向容器挂载出来的库文件。")
 
     api = Api(args.base)
     status, body = api.get("/health")
@@ -290,14 +315,11 @@ def main() -> int:
     say(f"  供货商档案 {len(suppliers)} 家，其中已建账号 {len(accounts)} 家")
 
     # 确保参与演示的供货商账号密码可用（统一 supplier123，不强制改密）
-    import pathlib
+    from app.models import Rfq, RfqLine, RfqSupplier, User  # noqa: PLC0415
+    from app.security import hash_password  # noqa: PLC0415
+    from sqlalchemy import select  # noqa: PLC0415
 
-    sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1] / "backend"))
-    from app.database import SessionLocal  # noqa: E402
-    from app.models import User  # noqa: E402
-    from app.security import hash_password  # noqa: E402
-
-    db = SessionLocal()
+    db = Session()
     try:
         fixed = 0
         for sid in {s["id"] for s in suppliers}:
@@ -312,13 +334,8 @@ def main() -> int:
     finally:
         db.close()
 
-    # 后续多个步骤都要用到的 DB 查询能力，统一在此导入
-    from sqlalchemy import select  # noqa: PLC0415
-
-    from app.models import Rfq, RfqLine, RfqSupplier  # noqa: PLC0415
-
     say("\n[0] 清理上一次的演示数据")
-    removed = clear_previous()
+    removed = clear_previous(Session)
     say(f"  已删除上一批演示单据 {removed} 张" if removed else "  没有旧的演示单据，跳过")
 
     _, body = api.get("/meta/units")
@@ -511,7 +528,7 @@ def main() -> int:
         "办公用品": 18.5,
         "车间耗材": 42.0,
     }
-    db = SessionLocal()
+    db = Session()
     try:
         seed_rfqs = db.scalars(
             select(Rfq).where(~Rfq.title.like(f"{PREFIX}%")).order_by(Rfq.id)
@@ -588,7 +605,7 @@ def main() -> int:
     # 而若保持 created_at=今天，则"已截止"单据的 deadline 无处安放
     # （deadline 必须晚于创建时间且早于现在，只剩不到一小时窗口）。
     # 因此历史单据必须**同时**回填 created_at 与单号里的日期，并保证同一天序号不冲突。
-    db = SessionLocal()
+    db = Session()
     try:
         now = datetime.now()
         closed_n = 0
