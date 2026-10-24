@@ -21,6 +21,7 @@ import {
   changePmDocumentNode,
   createPmDocument,
   deletePmDocument,
+  exportPmDocuments,
   listPmDocumentLogs,
   listPmDocuments,
   resetProjectCopies,
@@ -37,6 +38,7 @@ const {
 
 const rows = ref([])
 const loading = ref(false)
+const exporting = ref(false)
 const selected = ref([])
 
 /** 小计：单据数 / 已归档单据数 / 归档文件完成数 */
@@ -47,6 +49,18 @@ const stats = computed(() => {
   const filesDone = rows.value.reduce((sum, r) => sum + (r.archive_done || 0), 0)
   return { total, archived, files, filesDone }
 })
+
+/** 导出当前范围的配套单据（含节点与归档完成情况） */
+async function exportRows() {
+  exporting.value = true
+  try {
+    await exportPmDocuments(scopeKey.value)
+  } catch {
+    // request.js 已提示
+  } finally {
+    exporting.value = false
+  }
+}
 
 async function load() {
   loading.value = true
@@ -326,6 +340,7 @@ onMounted(async () => {
         </p>
       </div>
       <div class="page-head__actions">
+        <el-button :loading="exporting" @click="exportRows">导出 Excel</el-button>
         <el-button @click="openCreate">+ 新增单据</el-button>
       </div>
     </header>

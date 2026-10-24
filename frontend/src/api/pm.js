@@ -10,7 +10,7 @@
  * CH-007：配套单据的审批流转改为「节点列表 + 当前节点」，归档要求改为
  * 「归档文件清单 + 逐项勾选」，并支持列表页多选批量归档。
  */
-import { del, get, post, put } from './request'
+import { del, download, get, post, put } from './request'
 
 // ---------------------------------------------------------------------------
 // 看板与项目
@@ -148,4 +148,41 @@ export function addPmDocumentFile(id, payload) {
 /** 单据节点/归档操作历史 */
 export function listPmDocumentLogs(id) {
   return get(`/pm/documents/${id}/logs`)
+}
+
+// ---------------------------------------------------------------------------
+// Excel 导出（CH-009）：每个页面导出当前看到的数据
+// ---------------------------------------------------------------------------
+/** 看板：多项目进度清单 */
+export function exportPmBoard(projectCount = 0) {
+  return download('/pm/board/export', { filename: `多项目进度_${projectCount}个项目.xlsx` })
+}
+
+/** 工期计划表：某项目的 8 阶段明细 */
+export function exportProjectStages(id, name = '') {
+  return download(`/pm/projects/${id}/stages/export`, { filename: `工期计划表_${name || id}.xlsx` })
+}
+
+/** 施工实施步骤明细（不传 projectId = 标准模板，仅管理员可导） */
+export function exportPmProcesses(projectId) {
+  return download('/pm/processes/export', {
+    params: projectId ? { project_id: projectId } : {},
+    filename: '施工实施步骤明细.xlsx',
+  })
+}
+
+/** 预算决算管理点 */
+export function exportPmCostPoints(projectId) {
+  return download('/pm/cost-points/export', {
+    params: projectId ? { project_id: projectId } : {},
+    filename: '预算决算管理点.xlsx',
+  })
+}
+
+/** 预算决算配套单据 */
+export function exportPmDocuments(projectId) {
+  return download('/pm/documents/export', {
+    params: projectId ? { project_id: projectId } : {},
+    filename: '预算决算配套单据.xlsx',
+  })
 }

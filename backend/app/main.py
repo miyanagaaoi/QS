@@ -172,6 +172,7 @@ _include("supplier", "/api/supplier", "供货商报价")
 _include("report", "/api/reports", "统计报表")
 _include("pm", "/api/pm", "项目管理")
 _include("pm_documents", "/api/pm", "项目管理-配套单据")
+_include("pm_export", "/api/pm", "项目管理-导出")
 
 # --------------------------------------------------------------------------
 # 前端静态资源（生产由 nginx 托管；若前端已构建则一并由后端提供，便于单容器/单端口演示）

@@ -8,6 +8,7 @@ import { onMounted, ref, watch } from 'vue'
 import {
   createPmCostPoint,
   deletePmCostPoint,
+  exportPmCostPoints,
   listPmCostPoints,
   resetProjectCopies,
   updatePmCostPoint,
@@ -23,6 +24,7 @@ const {
 } = usePmScope()
 
 const rows = ref([])
+const exporting = ref(false)
 const loading = ref(false)
 
 const columns = [
@@ -33,6 +35,18 @@ const columns = [
   { prop: 'risk', label: '常见风险 / 红线', minWidth: 220, textarea: true },
   { prop: 'owner', label: '责任主体', width: 130 },
 ]
+
+/** 导出当前范围的管理点清单 */
+async function exportRows() {
+  exporting.value = true
+  try {
+    await exportPmCostPoints(scopeKey.value)
+  } catch {
+    // request.js 已提示
+  } finally {
+    exporting.value = false
+  }
+}
 
 async function load() {
   loading.value = true
@@ -109,6 +123,9 @@ onMounted(async () => {
         <p class="page-head__sub">
           {{ isTemplate ? '标准模板（全公司一套，新建项目时按它复制）' : '项目专属管理点（可增改删）' }}
         </p>
+      </div>
+      <div class="page-head__actions">
+        <el-button :loading="exporting" @click="exportRows">导出 Excel</el-button>
       </div>
     </header>
 

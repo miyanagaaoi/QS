@@ -16,6 +16,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 
 import {
+  exportProjectStages,
   getProject,
   resetProjectStages,
   saveProjectStages,
@@ -30,6 +31,7 @@ const userStore = useUserStore()
 const projectId = Number(route.params.id)
 const loading = ref(true)
 const saving = ref(false)
+const exporting = ref(false)
 const project = ref(null)
 const stages = ref([])
 
@@ -220,6 +222,19 @@ async function resetStages() {
   }
 }
 
+/** 导出本项目工期计划表（xlsx） */
+async function exportStages() {
+  if (!project.value) return
+  exporting.value = true
+  try {
+    await exportProjectStages(project.value.id, project.value.name)
+  } catch {
+    // request.js 已提示
+  } finally {
+    exporting.value = false
+  }
+}
+
 onMounted(load)
 </script>
 
@@ -238,6 +253,7 @@ onMounted(load)
         </p>
       </div>
       <div class="page-head__actions">
+        <el-button :loading="exporting" @click="exportStages">导出 Excel</el-button>
         <el-button :loading="saving" @click="resetStages">重置为标准模板</el-button>
         <el-button type="primary" :loading="saving" @click="saveStages">保存阶段表</el-button>
       </div>

@@ -21,6 +21,7 @@ import {
   changePmProcessStatus,
   createPmProcess,
   deletePmProcess,
+  exportPmProcesses,
   listPmProcesses,
   listPmProcessLogs,
   resetProjectCopies,
@@ -45,6 +46,7 @@ const {
 } = usePmScope()
 
 const loading = ref(false)
+const exporting = ref(false)
 const rows = ref([])
 
 const STATUS = {
@@ -80,6 +82,18 @@ const summary = computed(() => {
     current: doing.map((r) => r.name),
   }
 })
+
+/** 导出当前范围（项目副本或标准模板）的工序明细 */
+async function exportRows() {
+  exporting.value = true
+  try {
+    await exportPmProcesses(scopeKey.value)
+  } catch {
+    // request.js 已提示
+  } finally {
+    exporting.value = false
+  }
+}
 
 async function load() {
   loading.value = true
@@ -294,6 +308,7 @@ onMounted(async () => {
         </p>
       </div>
       <div class="page-head__actions">
+        <el-button :loading="exporting" @click="exportRows">导出 Excel</el-button>
         <el-button @click="openCreate">+ 新增工序</el-button>
       </div>
     </header>

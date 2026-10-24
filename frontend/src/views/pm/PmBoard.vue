@@ -17,10 +17,12 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   createProject,
   deleteProject,
+  exportPmBoard,
   getPmBoard,
   updateProject,
 } from '@/api/pm'
 import { useBreakpoint } from '@/composables/useBreakpoint'
+import PmGantt from './PmGantt.vue'
 import { useUserStore } from '@/stores/user'
 
 const router = useRouter()
@@ -28,6 +30,8 @@ const { isMobile } = useBreakpoint()
 const userStore = useUserStore()
 
 const loading = ref(true)
+const exporting = ref(false)
+const ganttOpen = ref(true)
 const board = reactive({
   summary: { total: 0, active: 0, planning: 0, done: 0, paused: 0, overdue: 0, due_soon: 0 },
   stage_distribution: [],
@@ -82,6 +86,18 @@ async function load() {
     // request.js 已统一 Toast
   } finally {
     loading.value = false
+  }
+}
+
+/** 导出多项目进度清单（xlsx） */
+async function exportBoard() {
+  exporting.value = true
+  try {
+    await exportPmBoard(board.projects.length)
+  } catch {
+    // request.js 已提示
+  } finally {
+    exporting.value = false
   }
 }
 
@@ -190,6 +206,11 @@ function openDetail(row) {
   router.push(`/pm/projects/${row.id}`)
 }
 
+/** 甘特图只发出项目 id（没有整行对象），单独处理跳转 */
+function openById(id) {
+  if (id) router.push(`/pm/projects/${id}`)
+}
+
 // —— 展示辅助 ——
 function fmtMonths(v) {
   if (v === null || v === undefined || v === '') return '—'
@@ -229,6 +250,7 @@ onMounted(load)
           clearable
           style="width: 240px"
         />
+        <el-button :loading="exporting" @click="exportBoard">导出 Excel</el-button>
         <el-button type="primary" @click="openCreate">+ 新建项目</el-button>
       </div>
     </header>
@@ -273,6 +295,20 @@ onMounted(load)
           </li>
         </ul>
         <p v-else class="empty-text">暂无已设计划竣工日期的项目</p>
+      </div>
+    </section>
+
+    <!-- 甘特图（CH-009，可折叠、只读） -->
+    <section class="card gantt-panel">
+      <div class="card__head gantt-panel__head">
+        <h3 class="card__title">多项目进度甘特图</h3>
+        <span class="card__hint">横轴按日期 · 数据来自各项目开工/计划竣工 · 只读</span>
+        <el-button link type="primary" @click="ganttOpen = !ganttOpen">
+          {{ ganttOpen ? '收起' : '展开' }}
+        </el-button>
+      </div>
+      <div v-show="ganttOpen">
+        <PmGantt :projects="board.projects" @open="openById" />
       </div>
     </section>
 
@@ -450,6 +486,14 @@ onMounted(load)
   margin-left: auto;
   display: flex;
   gap: v.$sp-2;
+}
+
+.gantt-panel__head {
+  align-items: center;
+
+  :deep(.el-button) {
+    margin-left: auto;
+  }
 }
 
 .stat-grid {

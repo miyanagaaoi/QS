@@ -647,3 +647,62 @@ def test_document_edit_keeps_archive_state(client, admin_token):
     assert saved.status_code == 200, saved.text
     state = saved.json()["data"]
     assert state["archive_files"][0]["archived"] is True, "编辑不应清掉已勾选的归档状态"
+
+
+# ===========================================================================
+# CH-009：Excel 导出（看板 + 四个子页）
+# ===========================================================================
+def _load_xlsx(resp):
+    from io import BytesIO
+
+    from openpyxl import load_workbook
+
+    assert resp.status_code == 200, resp.text
+    assert "spreadsheetml" in resp.headers["content-type"]
+    assert "attachment" in resp.headers["content-disposition"]
+    return load_workbook(BytesIO(resp.content)).active
+
+
+def test_export_board_xlsx(client, admin_token):
+    _create(client, admin_token, name="导出看板项目")
+    sheet = _load_xlsx(client.get("/api/pm/board/export", headers=auth(admin_token)))
+    headers = [c.value for c in sheet[1]]
+    assert headers[:6] == ["序号", "项目名称", "项目编号", "当前阶段", "状态", "项目经理"]
+    assert "总体进度%" in headers and "工序完成" in headers
+    assert sheet.max_row >= 2  # 至少表头 + 1 个项目
+
+
+def test_export_project_stages_xlsx(client, admin_token):
+    project = _create(client, admin_token, name="导出工期项目")
+    sheet = _load_xlsx(
+        client.get(f"/api/pm/projects/{project['id']}/stages/export", headers=auth(admin_token))
+    )
+    headers = [c.value for c in sheet[1]]
+    assert headers[1] == "阶段名称" and "工期(月)" in headers
+    # 8 个阶段 + 合计行 + 空行 + 项目信息行
+    assert sheet.max_row >= 10
+
+
+def test_export_reference_tables_xlsx(client, admin_token):
+    project = _create(client, admin_token, name="导出参考表项目")
+    pid = project["id"]
+    cases = [
+        ("processes", 16, "工序分组"),
+        ("cost-points", 15, "环节"),
+        ("documents", 13, "审批流转节点"),
+    ]
+    for path, min_rows, header in cases:
+        sheet = _load_xlsx(
+            client.get(f"/api/pm/{path}/export?project_id={pid}", headers=auth(admin_token))
+        )
+        headers = [c.value for c in sheet[1]]
+        assert header in headers, f"{path} 表头缺少 {header}"
+        assert sheet.max_row >= min_rows, f"{path} 行数不足（{sheet.max_row}）"
+
+
+def test_export_template_requires_admin(client, admin_token, buyer_token):
+    ok = client.get("/api/pm/processes/export", headers=auth(admin_token))
+    assert ok.status_code == 200
+    denied = client.get("/api/pm/processes/export", headers=auth(buyer_token))
+    assert denied.status_code == 403
+    assert denied.json()["code"] == 40300
