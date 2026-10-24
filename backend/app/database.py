@@ -80,4 +80,39 @@ def init_db() -> None:
     from . import models  # noqa: F401  确保模型已注册到 metadata
 
     models.Base.metadata.create_all(bind=engine)
+    _migrate_add_columns()
     os.makedirs(settings.resolved_upload_dir(), exist_ok=True)
+
+
+def _migrate_add_columns() -> None:
+    """轻量级列迁移：给已存在的表补新增列（create_all 只建新表，不改旧表）。
+
+    CH-005 给 3 张参考表加了 `project_id`、给 pm_process 加了进度字段。
+    这些列都可空/有默认值，因此用 `ALTER TABLE ... ADD COLUMN` 即可，幂等：
+    先读 `PRAGMA table_info`（SQLite）判断列是否已存在，存在则跳过。
+    仅对 SQLite 生效；换 PostgreSQL 时应改用 Alembic（README 已列为待办）。
+    """
+    from sqlalchemy import text
+
+    additions: dict[str, list[tuple[str, str]]] = {
+        "pm_process": [
+            ("project_id", "INTEGER REFERENCES pm_project(id)"),
+            ("status", "VARCHAR(12) NOT NULL DEFAULT 'todo'"),
+            ("assignee", "VARCHAR(50)"),
+            ("started_at", "DATETIME"),
+            ("finished_at", "DATETIME"),
+            ("progress_remark", "VARCHAR(200)"),
+        ],
+        "pm_cost_point": [("project_id", "INTEGER REFERENCES pm_project(id)")],
+        "pm_document": [("project_id", "INTEGER REFERENCES pm_project(id)")],
+    }
+    with engine.begin() as conn:
+        for table, columns in additions.items():
+            rows = conn.execute(text(f"PRAGMA table_info({table})")).fetchall()
+            if not rows:  # 表还不存在（首次建库时 create_all 已建好，理论上不会走到）
+                continue
+            existing = {row[1] for row in rows}
+            for name, ddl in columns:
+                if name in existing:
+                    continue
+                conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {name} {ddl}"))

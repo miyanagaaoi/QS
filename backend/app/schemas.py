@@ -628,6 +628,9 @@ class PmProjectOut(PmProjectIn):
     overdue: bool = False        # 已过计划竣工且未标记竣工
     due_soon: bool = False       # 30 天内到期且未竣工
     stage_count: int = 0
+    # 施工工序完成情况（CH-005，看板展示「工序 x/y 完成」）
+    process_done: int = 0
+    process_total: int = 0
 
 
 class PmProjectDetail(PmProjectOut):
@@ -657,6 +660,9 @@ class PmBoard(BaseModel):
     upcoming: list[PmProjectOut] = Field(default_factory=list)
 
 
+PmProcessStatus = Literal["todo", "doing", "done", "paused"]
+
+
 class PmProcessIn(BaseModel):
     seq: int | None = None
     group_name: str | None = Field(default=None, max_length=20)
@@ -664,6 +670,9 @@ class PmProcessIn(BaseModel):
     content: str | None = Field(default=None, max_length=400)
     qc_point: str | None = Field(default=None, max_length=300)
     predecessor: str | None = Field(default=None, max_length=100)
+    # 进度字段（模板行不使用）
+    assignee: str | None = Field(default=None, max_length=50)
+    progress_remark: str | None = Field(default=None, max_length=200)
 
 
 class PmProcessOut(PmProcessIn):
@@ -671,6 +680,34 @@ class PmProcessOut(PmProcessIn):
     seq: int
     group_name: str
     name: str
+    project_id: int | None = None   # None = 标准模板
+    status: PmProcessStatus = "todo"
+    started_at: datetime | None = None
+    finished_at: datetime | None = None
+
+
+class PmProcessStatusIn(BaseModel):
+    """工序状态变更：目标状态 + 一句备注（PRD FR-PM-21）。"""
+
+    status: PmProcessStatus
+    remark: str | None = Field(default=None, max_length=200)
+
+
+class PmProcessLogOut(BaseModel):
+    id: int
+    process_id: int
+    from_status: str | None = None
+    to_status: str
+    remark: str | None = None
+    operator_name: str | None = None
+    created_at: datetime
+
+
+class PmProcessCreate(PmProcessIn):
+    """在项目副本里新增一行工序（模板行不属于任何项目）。"""
+
+    name: str = Field(min_length=1, max_length=60)
+    group_name: str = Field(min_length=1, max_length=20)
 
 
 class PmCostPointIn(BaseModel):
@@ -687,6 +724,7 @@ class PmCostPointOut(PmCostPointIn):
     seq: int
     phase: str
     point: str
+    project_id: int | None = None   # None = 标准模板
 
 
 class PmDocumentIn(BaseModel):
@@ -703,3 +741,4 @@ class PmDocumentOut(PmDocumentIn):
     id: int
     seq: int
     name: str
+    project_id: int | None = None   # None = 标准模板

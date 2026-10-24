@@ -325,6 +325,14 @@ onMounted(load)
             <span :class="row.overdue ? 'is-over' : ''">{{ remainText(row) }}</span>
           </template>
         </el-table-column>
+        <!-- CH-005：施工工序完成度（工序状态独立于阶段表，只作参考） -->
+        <el-table-column label="工序" width="86" align="center">
+          <template #default="{ row }">
+            <span class="process-count">
+              {{ row.process_done ?? 0 }}<i>/{{ row.process_total ?? 0 }}</i>
+            </span>
+          </template>
+        </el-table-column>
         <el-table-column prop="manager" label="项目经理" width="100">
           <template #default="{ row }">{{ row.manager || '—' }}</template>
         </el-table-column>
@@ -549,6 +557,16 @@ onMounted(load)
   font-family: v.$font-num;
 
   &.is-over { color: v.$danger; }
+
+.process-count {
+  font-family: v.$font-num;
+  color: v.$ok;
+
+  i {
+    font-style: normal;
+    color: v.$ink-400;
+  }
+}
 }
 
 .upcoming__date {

@@ -246,3 +246,178 @@ def test_only_admin_can_delete_project(client, admin_token, buyer_token):
     ok = client.delete(f"/api/pm/projects/{pid}", headers=auth(admin_token))
     assert ok.status_code == 200, ok.text
     assert client.get(f"/api/pm/projects/{pid}", headers=auth(admin_token)).status_code == 404
+
+
+# ===========================================================================
+# CH-005：模板 + 项目副本、工序进度与变更历史
+# ===========================================================================
+def _copies_of(client, project_id: int, token: str) -> dict[str, list]:
+    out = {}
+    for key, path in (
+        ("processes", "/api/pm/processes"),
+        ("cost_points", "/api/pm/cost-points"),
+        ("documents", "/api/pm/documents"),
+    ):
+        resp = client.get(f"{path}?project_id={project_id}", headers=auth(token))
+        assert resp.status_code == 200, resp.text
+        out[key] = resp.json()["data"]
+    return out
+
+
+def test_template_listing_admin_only(client, admin_token, buyer_token):
+    admin_rows = client.get("/api/pm/processes", headers=auth(admin_token)).json()["data"]
+    assert len(admin_rows) == 15
+    assert all(row["project_id"] is None for row in admin_rows)
+
+    denied = client.get("/api/pm/processes", headers=auth(buyer_token))
+    assert denied.status_code == 403
+    assert denied.json()["code"] == 40300
+
+
+def test_new_project_copies_reference_tables(client, admin_token):
+    project = _create(client, admin_token, name="副本复制项目")
+    copies = _copies_of(client, project["id"], admin_token)
+    assert len(copies["processes"]) == 15
+    assert len(copies["cost_points"]) == 14
+    assert len(copies["documents"]) == 12
+    # 副本行都归属该项目，且初始状态为未开始
+    assert all(row["project_id"] == project["id"] for row in copies["processes"])
+    assert all(row["status"] == "todo" for row in copies["processes"])
+
+
+def test_copy_edits_do_not_pollute_template(client, admin_token):
+    project = _create(client, admin_token, name="副本隔离项目")
+    copies = _copies_of(client, project["id"], admin_token)["processes"]
+    target = copies[0]
+    resp = client.put(
+        f"/api/pm/processes/{target['id']}",
+        json={"name": "副本改名", "qc_point": "副本质控点"},
+        headers=auth(admin_token),
+    )
+    assert resp.status_code == 200, resp.text
+    assert resp.json()["data"]["name"] == "副本改名"
+
+    templates = client.get("/api/pm/processes", headers=auth(admin_token)).json()["data"]
+    same_seq = next(row for row in templates if row["seq"] == target["seq"])
+    assert same_seq["name"] != "副本改名"
+    assert same_seq["project_id"] is None
+
+
+def test_process_status_flow_writes_history(client, admin_token, buyer_token):
+    project = _create(client, admin_token, name="状态流转项目")
+    row = _copies_of(client, project["id"], buyer_token)["processes"][0]
+
+    doing = client.post(
+        f"/api/pm/processes/{row['id']}/status",
+        json={"status": "doing", "remark": "现场开工"},
+        headers=auth(buyer_token),
+    )
+    assert doing.status_code == 200, doing.text
+    body = doing.json()["data"]
+    assert body["status"] == "doing"
+    assert body["started_at"] is not None
+    assert body["finished_at"] is None
+    assert body["progress_remark"] == "现场开工"
+
+    done = client.post(
+        f"/api/pm/processes/{row['id']}/status",
+        json={"status": "done"},
+        headers=auth(buyer_token),
+    )
+    assert done.status_code == 200
+    assert done.json()["data"]["finished_at"] is not None
+
+    logs = client.get(f"/api/pm/processes/{row['id']}/logs", headers=auth(admin_token)).json()["data"]
+    assert len(logs) == 2
+    # 倒序：最新在前
+    assert logs[0]["from_status"] == "doing" and logs[0]["to_status"] == "done"
+    assert logs[1]["from_status"] == "todo" and logs[1]["to_status"] == "doing"
+    assert logs[0]["operator_name"]  # 有操作人
+
+    # 同状态再改 → 400，且不写历史
+    again = client.post(
+        f"/api/pm/processes/{row['id']}/status",
+        json={"status": "done"},
+        headers=auth(buyer_token),
+    )
+    assert again.status_code == 400
+    assert len(client.get(f"/api/pm/processes/{row['id']}/logs", headers=auth(admin_token)).json()["data"]) == 2
+
+
+def test_template_row_rejects_status_change(client, admin_token):
+    template = client.get("/api/pm/processes", headers=auth(admin_token)).json()["data"][0]
+    resp = client.post(
+        f"/api/pm/processes/{template['id']}/status",
+        json={"status": "done"},
+        headers=auth(admin_token),
+    )
+    assert resp.status_code == 409
+    assert resp.json()["code"] == 40900
+
+
+def test_add_and_delete_copy_row(client, admin_token):
+    project = _create(client, admin_token, name="增删行项目")
+    pid = project["id"]
+    created = client.post(
+        f"/api/pm/processes?project_id={pid}",
+        json={"name": "临时工序", "group_name": "试验检验"},
+        headers=auth(admin_token),
+    )
+    assert created.status_code == 200, created.text
+    new_row = created.json()["data"]
+    assert new_row["project_id"] == pid
+    assert new_row["status"] == "todo"
+    assert len(_copies_of(client, pid, admin_token)["processes"]) == 16
+
+    deleted = client.delete(f"/api/pm/processes/{new_row['id']}", headers=auth(admin_token))
+    assert deleted.status_code == 200
+    assert len(_copies_of(client, pid, admin_token)["processes"]) == 15
+    # 模板行数不受影响
+    assert len(client.get("/api/pm/processes", headers=auth(admin_token)).json()["data"]) == 15
+
+
+def test_reset_copies_restores_template_state(client, admin_token):
+    project = _create(client, admin_token, name="重置副本项目")
+    pid = project["id"]
+    row = _copies_of(client, pid, admin_token)["processes"][0]
+    client.post(
+        f"/api/pm/processes/{row['id']}/status", json={"status": "done"}, headers=auth(admin_token)
+    )
+    client.put(
+        f"/api/pm/processes/{row['id']}", json={"name": "被改过的名字"}, headers=auth(admin_token)
+    )
+
+    reset = client.post(f"/api/pm/projects/{pid}/copies/reset", headers=auth(admin_token))
+    assert reset.status_code == 200, reset.text
+    after = _copies_of(client, pid, admin_token)
+    assert len(after["processes"]) == 15
+    assert after["processes"][0]["status"] == "todo"
+    assert after["processes"][0]["name"] != "被改过的名字"
+
+
+def test_board_reports_process_progress(client, admin_token):
+    project = _create(client, admin_token, name="看板工序数项目")
+    pid = project["id"]
+    rows = _copies_of(client, pid, admin_token)["processes"]
+    for row in rows[:3]:
+        client.post(
+            f"/api/pm/processes/{row['id']}/status", json={"status": "done"}, headers=auth(admin_token)
+        )
+    board = client.get("/api/pm/board", headers=auth(admin_token)).json()["data"]
+    item = next(p for p in board["projects"] if p["id"] == pid)
+    assert item["process_done"] == 3
+    assert item["process_total"] == 15
+
+
+def test_delete_project_cleans_copies_and_logs(client, admin_token):
+    project = _create(client, admin_token, name="删除级联项目")
+    pid = project["id"]
+    row = _copies_of(client, pid, admin_token)["processes"][0]
+    client.post(
+        f"/api/pm/processes/{row['id']}/status", json={"status": "doing"}, headers=auth(admin_token)
+    )
+    assert client.delete(f"/api/pm/projects/{pid}", headers=auth(admin_token)).status_code == 200
+    # 项目没了，副本接口应 404
+    assert client.get(f"/api/pm/processes?project_id={pid}", headers=auth(admin_token)).status_code == 404
+    # 模板仍然是 15 条
+    assert len(client.get("/api/pm/processes", headers=auth(admin_token)).json()["data"]) == 15

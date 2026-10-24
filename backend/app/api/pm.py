@@ -1,32 +1,38 @@
-"""项目管理模块（CH-002）。
+"""项目管理模块（CH-002 + CH-005）。
 
-与「询价报价」完全独立：不读取也不引用任何 `rfq` 数据，未来如需打通
-（例如把某张询价单挂到项目/阶段上）再单独评估。
+与「询价报价」完全独立：不读取也不引用任何 `rfq` 数据。
 
-设计取向（需求方明确）：**快速实现 + 手工维护关键数据 + 看板汇总关键指标**。
-- 项目主数据手工维护；8 阶段工期计划表由标准模板一键生成，之后可逐行改。
-- 施工工序 / 预算决算管理点 / 配套单据 是三张**全局参考表**（一套，可编辑），
-  不跟项目绑定，避免为每个项目复制一份带来的维护负担。
-- 进度不手工填：按 `开工日 → 计划竣工日` 的日期跨度实时计算（已过天数占比）。
-  "当前阶段"由用户手工维护（现实会拖期，计划与实际分开表达）。
+## 数据模型（CH-005 起）
+三张参考表（施工工序 / 预算决算管理点 / 配套单据）都带 `project_id`：
+- `project_id IS NULL` → **标准模板**，全公司一套，仅管理员维护；
+- `project_id = X` → **项目 X 的副本**，新建项目时从模板复制，项目内可增删改，
+  与模板、其它项目互不影响。
+
+## 工序进度（CH-005）
+项目副本的工序带四态状态（todo/doing/done/paused），允许并行的多个 doing；
+每次状态变更写一条 `pm_process_log`（追加、不可改不可删）。
 
 接口（前缀 /api/pm）：
-    GET    /board                      看板汇总
-    GET    /projects                   项目列表（含进度派生指标）
-    POST   /projects                   新建项目（自动生成 8 阶段）
-    GET    /projects/{id}              项目详情（含阶段表）
-    PUT    /projects/{id}              更新项目
-    DELETE /projects/{id}              删除项目（仅管理员）
-    PUT    /projects/{id}/stages       批量保存阶段表
-    POST   /projects/{id}/stages/reset 按标准模板重置阶段表
-    GET    /processes                  施工工序
-    PUT    /processes/{id}             修改单条工序
-    GET    /cost-points                预算决算管理点
-    PUT    /cost-points/{id}           修改单条管理点
-    GET    /documents                  预算决算配套单据
-    PUT    /documents/{id}             修改单张单据
+    GET    /board                       看板（含各项目工序完成数）
+    GET    /projects                    项目列表
+    POST   /projects                    新建项目（自动生成 8 阶段 + 复制三张参考表副本）
+    GET    /projects/{id}               项目详情（含阶段表）
+    PUT    /projects/{id}               更新项目
+    DELETE /projects/{id}               删除项目（仅管理员，级联删副本）
+    PUT    /projects/{id}/stages        批量保存阶段表
+    POST   /projects/{id}/stages/reset  按标准模板重置阶段表
+    POST   /projects/{id}/copies/reset  按模板重置三张参考表副本
 
-权限：require_internal（管理员 + 采购员）；供货商一律 403；删除项目仅管理员。
+    GET    /processes?project_id=       工序（不传 project_id = 模板，仅管理员）
+    POST   /processes?project_id=       新增一行
+    PUT    /processes/{id}              修改一行
+    DELETE /processes/{id}              删除一行（模板行仅管理员）
+    POST   /processes/{id}/status       状态变更（写历史）
+    GET    /processes/{id}/logs         状态变更历史
+    GET/POST/PUT/DELETE /cost-points    预算决算管理点（同样支持 project_id）
+    GET/POST/PUT/DELETE /documents      预算决算配套单据（同样支持 project_id）
+
+权限：项目相关 require_internal（管理员 + 采购员）；**模板维护仅管理员**；供货商 403。
 """
 from __future__ import annotations
 
@@ -34,7 +40,7 @@ from datetime import date
 from decimal import Decimal, InvalidOperation
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from ..database import get_db
@@ -44,6 +50,7 @@ from ..models import (
     PmCostPoint,
     PmDocument,
     PmProcess,
+    PmProcessLog,
     PmProject,
     PmStage,
     User,
@@ -57,8 +64,11 @@ from ..schemas import (
     PmCostPointOut,
     PmDocumentIn,
     PmDocumentOut,
+    PmProcessCreate,
     PmProcessIn,
+    PmProcessLogOut,
     PmProcessOut,
+    PmProcessStatusIn,
     PmProjectDetail,
     PmProjectIn,
     PmProjectOut,
@@ -70,14 +80,17 @@ from ..schemas import (
 router = APIRouter()
 
 DUE_SOON_DAYS = 30
+PROCESS_STATUSES = ("todo", "doing", "done", "paused")
 
 
+# --------------------------------------------------------------------------
+# 通用工具
+# --------------------------------------------------------------------------
 def _err(status: int, code: int, message: str) -> HTTPException:
     return HTTPException(status_code=status, detail={"code": code, "message": message})
 
 
 def _dec(value: str | None, field: str) -> Decimal | None:
-    """把前端传来的字符串数值转 Decimal；空串按未填处理。"""
     if value is None:
         return None
     text = str(value).strip()
@@ -96,8 +109,14 @@ def _str_or_none(value) -> str | None:
     return text or None
 
 
+def _fmt(value) -> str | None:
+    return str(value) if value is not None else None
+
+
+# --------------------------------------------------------------------------
+# 项目派生指标
+# --------------------------------------------------------------------------
 def _progress(project: PmProject, today: date) -> dict[str, object]:
-    """按日期跨度计算进度派生指标（前端不重复计算，保证口径唯一）。"""
     start = project.start_date
     end = project.plan_end_date
     total_days = (end - start).days if (start and end) else None
@@ -110,7 +129,7 @@ def _progress(project: PmProject, today: date) -> dict[str, object]:
         progress = 0
     elapsed_days = (today - start).days if start else 0
     remaining_days = (end - today).days if end else None
-    finished = project.status in ("done",)
+    finished = project.status == "done"
     overdue = bool(end and remaining_days is not None and remaining_days < 0 and not finished)
     due_soon = bool(
         end and remaining_days is not None and 0 <= remaining_days <= DUE_SOON_DAYS and not finished
@@ -124,7 +143,12 @@ def _progress(project: PmProject, today: date) -> dict[str, object]:
     }
 
 
-def _project_out(project: PmProject, today: date, stage_count: int | None = None) -> PmProjectOut:
+def _project_out(
+    project: PmProject,
+    today: date,
+    process_counts: dict[int, tuple[int, int]] | None = None,
+) -> PmProjectOut:
+    done, total = (process_counts or {}).get(project.id, (0, 0))
     return PmProjectOut(
         id=project.id,
         name=project.name,
@@ -132,42 +156,157 @@ def _project_out(project: PmProject, today: date, stage_count: int | None = None
         current_stage=project.current_stage,
         start_date=project.start_date,
         plan_end_date=project.plan_end_date,
-        total_months=str(project.total_months) if project.total_months is not None else None,
+        total_months=_fmt(project.total_months),
         manager=project.manager,
         status=project.status,  # type: ignore[arg-type]
         remark=project.remark,
         created_at=project.created_at,
         updated_at=project.updated_at,
-        stage_count=stage_count if stage_count is not None else len(project.stages),
+        stage_count=len(project.stages),
+        process_done=done,
+        process_total=total,
         **_progress(project, today),
     )
 
 
-def _stage_out(stage: PmStage) -> PmStageOut:
-    def s(value):
-        return str(value) if value is not None else None
+def _process_counts(db: Session) -> dict[int, tuple[int, int]]:
+    """各项目工序完成情况 {project_id: (done, total)}。"""
+    rows = db.execute(
+        select(PmProcess.project_id, PmProcess.status, func.count())
+        .where(PmProcess.project_id.is_not(None))
+        .group_by(PmProcess.project_id, PmProcess.status)
+    ).all()
+    counts: dict[int, tuple[int, int]] = {}
+    for project_id, status, count in rows:
+        done, total = counts.get(project_id, (0, 0))
+        total += count
+        if status == "done":
+            done += count
+        counts[project_id] = (done, total)
+    return counts
 
+
+def _stage_out(stage: PmStage) -> PmStageOut:
     return PmStageOut(
         id=stage.id,
         seq=stage.seq,
         name=stage.name,
         group_name=stage.group_name,
-        months=s(stage.months),
-        start_month=s(stage.start_month),
-        end_month=s(stage.end_month),
+        months=_fmt(stage.months),
+        start_month=_fmt(stage.start_month),
+        end_month=_fmt(stage.end_month),
         deliverables=stage.deliverables,
         pm_role=stage.pm_role,
         owner=stage.owner,
     )
 
 
-def _detail(project: PmProject, today: date) -> PmProjectDetail:
-    base = _project_out(project, today).model_dump()
+def _detail(project: PmProject, today: date, counts=None) -> PmProjectDetail:
+    base = _project_out(project, today, counts).model_dump()
     return PmProjectDetail(**base, stages=[_stage_out(x) for x in project.stages])
 
 
+def _load_project(db: Session, project_id: int) -> PmProject:
+    project = db.get(PmProject, project_id)
+    if project is None:
+        raise _err(404, 40400, "项目不存在")
+    return project
+
+
+# --------------------------------------------------------------------------
+# 模板 → 项目副本
+# --------------------------------------------------------------------------
+def _copy_process_row(tpl: PmProcess, project_id: int) -> PmProcess:
+    return PmProcess(
+        project_id=project_id,
+        seq=tpl.seq,
+        group_name=tpl.group_name,
+        name=tpl.name,
+        content=tpl.content,
+        qc_point=tpl.qc_point,
+        predecessor=tpl.predecessor,
+        status="todo",
+    )
+
+
+def _copy_cost_point_row(tpl: PmCostPoint, project_id: int) -> PmCostPoint:
+    return PmCostPoint(
+        project_id=project_id,
+        seq=tpl.seq,
+        phase=tpl.phase,
+        point=tpl.point,
+        action=tpl.action,
+        risk=tpl.risk,
+        owner=tpl.owner,
+    )
+
+
+def _copy_document_row(tpl: PmDocument, project_id: int) -> PmDocument:
+    return PmDocument(
+        project_id=project_id,
+        seq=tpl.seq,
+        cost_point=tpl.cost_point,
+        name=tpl.name,
+        usage=tpl.usage,
+        required_fields=tpl.required_fields,
+        flow=tpl.flow,
+        archive=tpl.archive,
+    )
+
+
+def _copy_reference_tables(db: Session, project: PmProject, *, only_missing: bool = True) -> None:
+    """把三张参考表的模板行复制一份给该项目。
+
+    only_missing=True（默认）：只补该项目**还没有任何副本行**的表，不覆盖项目内修改；
+    only_missing=False：先清空该项目副本再复制（"从模板重置"）。
+    """
+    specs = (
+        (PmProcess, _copy_process_row),
+        (PmCostPoint, _copy_cost_point_row),
+        (PmDocument, _copy_document_row),
+    )
+    for model, builder in specs:
+        existing = db.scalar(
+            select(func.count()).select_from(model).where(model.project_id == project.id)
+        )
+        if existing and only_missing:
+            continue
+        if existing:
+            rows = db.scalars(select(model).where(model.project_id == project.id)).all()
+            if model is PmProcess:
+                # 先删工序变更历史，否则外键约束会拦下工序行的删除
+                ids = [row.id for row in rows]
+                if ids:
+                    for log in db.scalars(
+                        select(PmProcessLog).where(PmProcessLog.process_id.in_(ids))
+                    ).all():
+                        db.delete(log)
+                    db.flush()
+            for row in rows:
+                db.delete(row)
+            db.flush()
+        templates = db.scalars(
+            select(model).where(model.project_id.is_(None)).order_by(model.seq)
+        ).all()
+        for tpl in templates:
+            db.add(builder(tpl, project.id))
+
+
+def ensure_all_project_copies(db: Session) -> int:
+    """为还没有副本的项目补齐副本（幂等，不覆盖已有）。返回补齐的项目数。"""
+    fixed = 0
+    for project in db.scalars(select(PmProject)).all():
+        has_copy = db.scalar(
+            select(func.count()).select_from(PmProcess).where(PmProcess.project_id == project.id)
+        )
+        if has_copy:
+            continue
+        _copy_reference_tables(db, project, only_missing=True)
+        fixed += 1
+    return fixed
+
+
 def _apply_stage_template(db: Session, project: PmProject) -> None:
-    """按标准 8 阶段模板重建阶段表（累计月数自动累加）。"""
     project.stages.clear()
     cursor = Decimal("0")
     for item in PM_STAGE_TEMPLATE:
@@ -189,28 +328,21 @@ def _apply_stage_template(db: Session, project: PmProject) -> None:
         cursor += months
 
 
-def _load_project(db: Session, project_id: int) -> PmProject:
-    project = db.get(PmProject, project_id)
-    if project is None:
-        raise _err(404, 40400, "项目不存在")
-    return project
-
-
 # --------------------------------------------------------------------------
-# 看板
+# 看板 / 项目
 # --------------------------------------------------------------------------
 @router.get("/board", response_model=Envelope[PmBoard], summary="项目管理看板汇总")
-def board(
-    db: Session = Depends(get_db),
-    user: User = Depends(require_internal),
-):
+def board(db: Session = Depends(get_db), user: User = Depends(require_internal)):
+    if ensure_all_project_copies(db):
+        db.commit()
     today = app_now().date()
     projects = list(db.scalars(select(PmProject).order_by(PmProject.id)).all())
-    outs = [_project_out(p, today) for p in projects]
+    counts = _process_counts(db)
+    outs = [_project_out(p, today, counts) for p in projects]
 
     summary = PmBoardSummary(total=len(outs))
     for item in outs:
-        summary.__setattr__(item.status, getattr(summary, item.status) + 1)
+        setattr(summary, item.status, getattr(summary, item.status) + 1)
         if item.overdue:
             summary.overdue += 1
         if item.due_soon:
@@ -224,8 +356,6 @@ def board(
         PmStageDistribution(stage=k, count=v)
         for k, v in sorted(dist.items(), key=lambda kv: (-kv[1], kv[0]))
     ]
-
-    # 近期关键节点：有竣工日期的按剩余天数升序（超期为负，排前面），取 5 个
     dated = [x for x in outs if x.remaining_days is not None and x.status != "done"]
     dated.sort(key=lambda x: x.remaining_days or 0)
     return Envelope(
@@ -238,17 +368,16 @@ def board(
     )
 
 
-# --------------------------------------------------------------------------
-# 项目 CRUD
-# --------------------------------------------------------------------------
 @router.get("/projects", response_model=Envelope[list[PmProjectOut]], summary="项目列表")
 def list_projects(
-    keyword: str | None = Query(None, description="名称/编号/项目经理模糊匹配"),
-    stage: str | None = Query(None, description="按当前阶段过滤"),
-    status: str | None = Query(None, description="planning/active/done/paused"),
+    keyword: str | None = Query(None),
+    stage: str | None = Query(None),
+    status: str | None = Query(None),
     db: Session = Depends(get_db),
     user: User = Depends(require_internal),
 ):
+    if ensure_all_project_copies(db):
+        db.commit()
     stmt = select(PmProject).order_by(PmProject.id.desc())
     if keyword and keyword.strip():
         like = f"%{keyword.strip()}%"
@@ -260,7 +389,8 @@ def list_projects(
     if status and status.strip():
         stmt = stmt.where(PmProject.status == status.strip())
     today = app_now().date()
-    return Envelope(data=[_project_out(p, today) for p in db.scalars(stmt).all()])
+    counts = _process_counts(db)
+    return Envelope(data=[_project_out(p, today, counts) for p in db.scalars(stmt).all()])
 
 
 @router.post("/projects", response_model=Envelope[PmProjectDetail], summary="新建项目")
@@ -286,6 +416,7 @@ def create_project(
     db.add(project)
     db.flush()
     _apply_stage_template(db, project)
+    _copy_reference_tables(db, project, only_missing=True)  # CH-005
     write_audit(
         db,
         request=request,
@@ -293,11 +424,11 @@ def create_project(
         action="pm.project.create",
         target_type="pm_project",
         target_id=project.id,
-        summary=f"新建项目 {project.name}（自动生成 8 阶段工期计划表）",
+        summary=f"新建项目 {project.name}（自动生成 8 阶段并复制参考表副本）",
     )
     db.commit()
     db.refresh(project)
-    return Envelope(data=_detail(project, app_now().date()))
+    return Envelope(data=_detail(project, app_now().date(), _process_counts(db)))
 
 
 @router.get("/projects/{project_id}", response_model=Envelope[PmProjectDetail], summary="项目详情")
@@ -306,7 +437,11 @@ def get_project(
     db: Session = Depends(get_db),
     user: User = Depends(require_internal),
 ):
-    return Envelope(data=_detail(_load_project(db, project_id), app_now().date()))
+    project = _load_project(db, project_id)
+    _copy_reference_tables(db, project, only_missing=True)
+    db.commit()
+    db.refresh(project)
+    return Envelope(data=_detail(project, app_now().date(), _process_counts(db)))
 
 
 @router.put("/projects/{project_id}", response_model=Envelope[PmProjectDetail], summary="更新项目")
@@ -340,7 +475,7 @@ def update_project(
     )
     db.commit()
     db.refresh(project)
-    return Envelope(data=_detail(project, app_now().date()))
+    return Envelope(data=_detail(project, app_now().date(), _process_counts(db)))
 
 
 @router.delete("/projects/{project_id}", response_model=Envelope[dict], summary="删除项目（仅管理员）")
@@ -352,6 +487,14 @@ def delete_project(
 ):
     project = _load_project(db, project_id)
     name = project.name
+    # 先删工序变更历史，再删副本行（外键方向：log → process）
+    for log in db.scalars(select(PmProcessLog).where(PmProcessLog.project_id == project_id)).all():
+        db.delete(log)
+    db.flush()
+    for model in (PmProcess, PmCostPoint, PmDocument):
+        for row in db.scalars(select(model).where(model.project_id == project_id)).all():
+            db.delete(row)
+    db.flush()
     db.delete(project)
     write_audit(
         db,
@@ -360,7 +503,7 @@ def delete_project(
         action="pm.project.delete",
         target_type="pm_project",
         target_id=project_id,
-        summary=f"删除项目 {name}",
+        summary=f"删除项目 {name}（含参考表副本）",
     )
     db.commit()
     return Envelope(data={"deleted": project_id})
@@ -413,7 +556,7 @@ def save_stages(
     )
     db.commit()
     db.refresh(project)
-    return Envelope(data=_detail(project, app_now().date()))
+    return Envelope(data=_detail(project, app_now().date(), _process_counts(db)))
 
 
 @router.post(
@@ -442,24 +585,153 @@ def reset_stages(
     )
     db.commit()
     db.refresh(project)
-    return Envelope(data=_detail(project, app_now().date()))
+    return Envelope(data=_detail(project, app_now().date(), _process_counts(db)))
 
 
-# --------------------------------------------------------------------------
-# 三张全局参考表（可编辑，不跟项目绑定）
-# --------------------------------------------------------------------------
-@router.get("/processes", response_model=Envelope[list[PmProcessOut]], summary="施工实施步骤明细")
-def list_processes(db: Session = Depends(get_db), user: User = Depends(require_internal)):
-    rows = db.scalars(select(PmProcess).order_by(PmProcess.seq)).all()
-    return Envelope(
-        data=[
-            PmProcessOut(
-                id=r.id, seq=r.seq, group_name=r.group_name, name=r.name,
-                content=r.content, qc_point=r.qc_point, predecessor=r.predecessor,
-            )
-            for r in rows
-        ]
+@router.post(
+    "/projects/{project_id}/copies/reset",
+    response_model=Envelope[dict],
+    summary="按模板重置该项目的三张参考表副本",
+)
+def reset_copies(
+    project_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_internal),
+):
+    project = _load_project(db, project_id)
+    _copy_reference_tables(db, project, only_missing=False)
+    project.updated_at = app_now()
+    write_audit(
+        db,
+        request=request,
+        user=user,
+        action="pm.project.copies_reset",
+        target_type="pm_project",
+        target_id=project.id,
+        summary=f"按模板重置项目 {project.name} 的参考表副本（工序/管理点/单据）",
     )
+    db.commit()
+    return Envelope(
+        data={"project_id": project_id, "reset": ["processes", "cost_points", "documents"]}
+    )
+
+
+# --------------------------------------------------------------------------
+# 参考表通用：模板（project_id 为空）与项目副本
+# --------------------------------------------------------------------------
+def _guard_template(user: User) -> None:
+    """模板只有管理员能改（CH-005 / FR-PM-16）。"""
+    if user.role != "admin":
+        raise _err(403, 40300, "标准模板仅管理员可维护")
+
+
+def _ensure_project_exists(db: Session, project_id: int) -> PmProject:
+    project = _load_project(db, project_id)
+    _copy_reference_tables(db, project, only_missing=True)
+    return project
+
+
+def _process_out(row: PmProcess) -> PmProcessOut:
+    return PmProcessOut(
+        id=row.id,
+        seq=row.seq,
+        group_name=row.group_name,
+        name=row.name,
+        content=row.content,
+        qc_point=row.qc_point,
+        predecessor=row.predecessor,
+        assignee=row.assignee,
+        progress_remark=row.progress_remark,
+        project_id=row.project_id,
+        status=row.status,  # type: ignore[arg-type]
+        started_at=row.started_at,
+        finished_at=row.finished_at,
+    )
+
+
+def _cost_point_out(row: PmCostPoint) -> PmCostPointOut:
+    return PmCostPointOut(
+        id=row.id,
+        seq=row.seq,
+        phase=row.phase,
+        point=row.point,
+        action=row.action,
+        risk=row.risk,
+        owner=row.owner,
+        project_id=row.project_id,
+    )
+
+
+def _document_out(row: PmDocument) -> PmDocumentOut:
+    return PmDocumentOut(
+        id=row.id,
+        seq=row.seq,
+        cost_point=row.cost_point,
+        name=row.name,
+        usage=row.usage,
+        required_fields=row.required_fields,
+        flow=row.flow,
+        archive=row.archive,
+        project_id=row.project_id,
+    )
+
+
+# ---------- 施工工序 ----------
+@router.get("/processes", response_model=Envelope[list[PmProcessOut]], summary="施工实施步骤明细")
+def list_processes(
+    project_id: int | None = Query(None, description="项目 ID；不传=标准模板（仅管理员）"),
+    db: Session = Depends(get_db),
+    user: User = Depends(require_internal),
+):
+    if project_id:
+        _ensure_project_exists(db, project_id)
+        db.commit()
+        rows = db.scalars(
+            select(PmProcess).where(PmProcess.project_id == project_id).order_by(PmProcess.seq)
+        ).all()
+    else:
+        _guard_template(user)
+        rows = db.scalars(
+            select(PmProcess).where(PmProcess.project_id.is_(None)).order_by(PmProcess.seq)
+        ).all()
+    return Envelope(data=[_process_out(r) for r in rows])
+
+
+@router.post("/processes", response_model=Envelope[PmProcessOut], summary="新增一行工序")
+def create_process(
+    payload: PmProcessCreate,
+    project_id: int | None = Query(None),
+    db: Session = Depends(get_db),
+    user: User = Depends(require_internal),
+):
+    if not project_id:
+        _guard_template(user)
+        template = True
+    else:
+        _ensure_project_exists(db, project_id)
+        template = False
+    max_seq = db.scalar(
+        select(func.max(PmProcess.seq)).where(
+            PmProcess.project_id.is_(None) if template else PmProcess.project_id == project_id
+        )
+    )
+    row = PmProcess(
+        project_id=None if template else project_id,
+        seq=int(payload.seq or (max_seq or 0) + 1),
+        group_name=payload.group_name.strip(),
+        name=payload.name.strip(),
+        content=_str_or_none(payload.content),
+        qc_point=_str_or_none(payload.qc_point),
+        predecessor=_str_or_none(payload.predecessor),
+        assignee=_str_or_none(payload.assignee),
+        progress_remark=_str_or_none(payload.progress_remark),
+        status="todo",
+    )
+    db.add(row)
+    db.commit()
+    db.refresh(row)
+    return Envelope(data=_process_out(row))
 
 
 @router.put("/processes/{item_id}", response_model=Envelope[PmProcessOut], summary="修改工序")
@@ -472,6 +744,8 @@ def update_process(
     row = db.get(PmProcess, item_id)
     if row is None:
         raise _err(404, 40400, "工序不存在")
+    if row.project_id is None:
+        _guard_template(user)
     if payload.seq is not None:
         row.seq = payload.seq
     if payload.group_name is not None:
@@ -481,28 +755,193 @@ def update_process(
     row.content = payload.content if payload.content is not None else row.content
     row.qc_point = payload.qc_point if payload.qc_point is not None else row.qc_point
     row.predecessor = payload.predecessor if payload.predecessor is not None else row.predecessor
+    row.assignee = payload.assignee if payload.assignee is not None else row.assignee
+    row.progress_remark = (
+        payload.progress_remark if payload.progress_remark is not None else row.progress_remark
+    )
     db.commit()
     db.refresh(row)
-    return Envelope(
-        data=PmProcessOut(
-            id=row.id, seq=row.seq, group_name=row.group_name, name=row.name,
-            content=row.content, qc_point=row.qc_point, predecessor=row.predecessor,
+    return Envelope(data=_process_out(row))
+
+
+@router.delete("/processes/{item_id}", response_model=Envelope[dict], summary="删除工序")
+def delete_process(
+    item_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_internal),
+):
+    row = db.get(PmProcess, item_id)
+    if row is None:
+        raise _err(404, 40400, "工序不存在")
+    if row.project_id is None:
+        _guard_template(user)
+    for log in db.scalars(select(PmProcessLog).where(PmProcessLog.process_id == item_id)).all():
+        db.delete(log)
+    name, project_id = row.name, row.project_id
+    db.delete(row)
+    write_audit(
+        db,
+        request=request,
+        user=user,
+        action="pm.process.delete",
+        target_type="pm_process",
+        target_id=item_id,
+        summary=f"删除工序 {name}（项目 {project_id if project_id else '模板'}）",
+    )
+    db.commit()
+    return Envelope(data={"deleted": item_id})
+
+
+@router.post(
+    "/processes/{item_id}/status",
+    response_model=Envelope[PmProcessOut],
+    summary="变更工序状态（写变更历史）",
+)
+def change_process_status(
+    item_id: int,
+    payload: PmProcessStatusIn,
+    request: Request,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_internal),
+):
+    row = db.get(PmProcess, item_id)
+    if row is None:
+        raise _err(404, 40400, "工序不存在")
+    if row.project_id is None:
+        raise _err(409, 40900, "标准模板不跟踪进度，请在具体项目下操作")
+    if payload.status not in PROCESS_STATUSES:
+        raise _err(400, 40001, f"未知状态：{payload.status}")
+    if row.status == payload.status:
+        raise _err(400, 40001, "状态未发生变化")
+
+    now = app_now()
+    from_status = row.status
+    row.status = payload.status
+    if payload.status == "doing" and row.started_at is None:
+        row.started_at = now
+    if payload.status == "done":
+        if row.started_at is None:
+            row.started_at = now
+        row.finished_at = now
+    if payload.status in ("todo", "paused") and from_status == "done":
+        row.finished_at = None
+    if payload.remark is not None:
+        row.progress_remark = payload.remark
+
+    db.add(
+        PmProcessLog(
+            process_id=row.id,
+            project_id=row.project_id,
+            from_status=from_status,
+            to_status=payload.status,
+            remark=_str_or_none(payload.remark),
+            operator_id=user.id,
+            operator_name=user.real_name or user.username,
         )
     )
+    write_audit(
+        db,
+        request=request,
+        user=user,
+        action="pm.process.status",
+        target_type="pm_process",
+        target_id=row.id,
+        summary=f"工序 {row.name}：{from_status} → {payload.status}（项目 {row.project_id}）",
+    )
+    db.commit()
+    db.refresh(row)
+    return Envelope(data=_process_out(row))
 
 
-@router.get("/cost-points", response_model=Envelope[list[PmCostPointOut]], summary="预算决算管理点")
-def list_cost_points(db: Session = Depends(get_db), user: User = Depends(require_internal)):
-    rows = db.scalars(select(PmCostPoint).order_by(PmCostPoint.seq)).all()
+@router.get(
+    "/processes/{item_id}/logs",
+    response_model=Envelope[list[PmProcessLogOut]],
+    summary="工序状态变更历史",
+)
+def list_process_logs(
+    item_id: int,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_internal),
+):
+    row = db.get(PmProcess, item_id)
+    if row is None:
+        raise _err(404, 40400, "工序不存在")
+    rows = db.scalars(
+        select(PmProcessLog)
+        .where(PmProcessLog.process_id == item_id)
+        .order_by(PmProcessLog.id.desc())
+    ).all()
     return Envelope(
         data=[
-            PmCostPointOut(
-                id=r.id, seq=r.seq, phase=r.phase, point=r.point,
-                action=r.action, risk=r.risk, owner=r.owner,
+            PmProcessLogOut(
+                id=r.id,
+                process_id=r.process_id,
+                from_status=r.from_status,
+                to_status=r.to_status,
+                remark=r.remark,
+                operator_name=r.operator_name,
+                created_at=r.created_at,
             )
             for r in rows
         ]
     )
+
+
+# ---------- 预算决算管理点 ----------
+@router.get("/cost-points", response_model=Envelope[list[PmCostPointOut]], summary="预算决算管理点")
+def list_cost_points(
+    project_id: int | None = Query(None),
+    db: Session = Depends(get_db),
+    user: User = Depends(require_internal),
+):
+    if project_id:
+        _ensure_project_exists(db, project_id)
+        db.commit()
+        rows = db.scalars(
+            select(PmCostPoint)
+            .where(PmCostPoint.project_id == project_id)
+            .order_by(PmCostPoint.seq)
+        ).all()
+    else:
+        _guard_template(user)
+        rows = db.scalars(
+            select(PmCostPoint).where(PmCostPoint.project_id.is_(None)).order_by(PmCostPoint.seq)
+        ).all()
+    return Envelope(data=[_cost_point_out(r) for r in rows])
+
+
+@router.post("/cost-points", response_model=Envelope[PmCostPointOut], summary="新增管理点")
+def create_cost_point(
+    payload: PmCostPointIn,
+    project_id: int | None = Query(None),
+    db: Session = Depends(get_db),
+    user: User = Depends(require_internal),
+):
+    if not project_id:
+        _guard_template(user)
+        template = True
+    else:
+        _ensure_project_exists(db, project_id)
+        template = False
+    max_seq = db.scalar(
+        select(func.max(PmCostPoint.seq)).where(
+            PmCostPoint.project_id.is_(None) if template else PmCostPoint.project_id == project_id
+        )
+    )
+    row = PmCostPoint(
+        project_id=None if template else project_id,
+        seq=int(payload.seq or (max_seq or 0) + 1),
+        phase=(payload.phase or "其他").strip(),
+        point=(payload.point or "新增管理点").strip(),
+        action=_str_or_none(payload.action),
+        risk=_str_or_none(payload.risk),
+        owner=_str_or_none(payload.owner),
+    )
+    db.add(row)
+    db.commit()
+    db.refresh(row)
+    return Envelope(data=_cost_point_out(row))
 
 
 @router.put("/cost-points/{item_id}", response_model=Envelope[PmCostPointOut], summary="修改管理点")
@@ -515,6 +954,8 @@ def update_cost_point(
     row = db.get(PmCostPoint, item_id)
     if row is None:
         raise _err(404, 40400, "管理点不存在")
+    if row.project_id is None:
+        _guard_template(user)
     if payload.seq is not None:
         row.seq = payload.seq
     if payload.phase is not None:
@@ -526,26 +967,91 @@ def update_cost_point(
     row.owner = payload.owner if payload.owner is not None else row.owner
     db.commit()
     db.refresh(row)
-    return Envelope(
-        data=PmCostPointOut(
-            id=row.id, seq=row.seq, phase=row.phase, point=row.point,
-            action=row.action, risk=row.risk, owner=row.owner,
+    return Envelope(data=_cost_point_out(row))
+
+
+@router.delete("/cost-points/{item_id}", response_model=Envelope[dict], summary="删除管理点")
+def delete_cost_point(
+    item_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_internal),
+):
+    row = db.get(PmCostPoint, item_id)
+    if row is None:
+        raise _err(404, 40400, "管理点不存在")
+    if row.project_id is None:
+        _guard_template(user)
+    point, project_id = row.point, row.project_id
+    db.delete(row)
+    write_audit(
+        db,
+        request=request,
+        user=user,
+        action="pm.cost_point.delete",
+        target_type="pm_cost_point",
+        target_id=item_id,
+        summary=f"删除管理点 {point}（项目 {project_id if project_id else '模板'}）",
+    )
+    db.commit()
+    return Envelope(data={"deleted": item_id})
+
+
+# ---------- 预算决算配套单据 ----------
+@router.get("/documents", response_model=Envelope[list[PmDocumentOut]], summary="预算决算配套单据")
+def list_documents(
+    project_id: int | None = Query(None),
+    db: Session = Depends(get_db),
+    user: User = Depends(require_internal),
+):
+    if project_id:
+        _ensure_project_exists(db, project_id)
+        db.commit()
+        rows = db.scalars(
+            select(PmDocument)
+            .where(PmDocument.project_id == project_id)
+            .order_by(PmDocument.seq)
+        ).all()
+    else:
+        _guard_template(user)
+        rows = db.scalars(
+            select(PmDocument).where(PmDocument.project_id.is_(None)).order_by(PmDocument.seq)
+        ).all()
+    return Envelope(data=[_document_out(r) for r in rows])
+
+
+@router.post("/documents", response_model=Envelope[PmDocumentOut], summary="新增配套单据")
+def create_document(
+    payload: PmDocumentIn,
+    project_id: int | None = Query(None),
+    db: Session = Depends(get_db),
+    user: User = Depends(require_internal),
+):
+    if not project_id:
+        _guard_template(user)
+        template = True
+    else:
+        _ensure_project_exists(db, project_id)
+        template = False
+    max_seq = db.scalar(
+        select(func.max(PmDocument.seq)).where(
+            PmDocument.project_id.is_(None) if template else PmDocument.project_id == project_id
         )
     )
-
-
-@router.get("/documents", response_model=Envelope[list[PmDocumentOut]], summary="预算决算配套单据")
-def list_documents(db: Session = Depends(get_db), user: User = Depends(require_internal)):
-    rows = db.scalars(select(PmDocument).order_by(PmDocument.seq)).all()
-    return Envelope(
-        data=[
-            PmDocumentOut(
-                id=r.id, seq=r.seq, cost_point=r.cost_point, name=r.name, usage=r.usage,
-                required_fields=r.required_fields, flow=r.flow, archive=r.archive,
-            )
-            for r in rows
-        ]
+    row = PmDocument(
+        project_id=None if template else project_id,
+        seq=int(payload.seq or (max_seq or 0) + 1),
+        cost_point=_str_or_none(payload.cost_point),
+        name=(payload.name or "新增单据").strip(),
+        usage=_str_or_none(payload.usage),
+        required_fields=_str_or_none(payload.required_fields),
+        flow=_str_or_none(payload.flow),
+        archive=_str_or_none(payload.archive),
     )
+    db.add(row)
+    db.commit()
+    db.refresh(row)
+    return Envelope(data=_document_out(row))
 
 
 @router.put("/documents/{item_id}", response_model=Envelope[PmDocumentOut], summary="修改配套单据")
@@ -558,6 +1064,8 @@ def update_document(
     row = db.get(PmDocument, item_id)
     if row is None:
         raise _err(404, 40400, "单据不存在")
+    if row.project_id is None:
+        _guard_template(user)
     if payload.seq is not None:
         row.seq = payload.seq
     if payload.name is not None:
@@ -571,13 +1079,34 @@ def update_document(
     row.archive = payload.archive if payload.archive is not None else row.archive
     db.commit()
     db.refresh(row)
-    return Envelope(
-        data=PmDocumentOut(
-            id=row.id, seq=row.seq, cost_point=row.cost_point, name=row.name,
-            usage=row.usage, required_fields=row.required_fields,
-            flow=row.flow, archive=row.archive,
-        )
+    return Envelope(data=_document_out(row))
+
+
+@router.delete("/documents/{item_id}", response_model=Envelope[dict], summary="删除配套单据")
+def delete_document(
+    item_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_internal),
+):
+    row = db.get(PmDocument, item_id)
+    if row is None:
+        raise _err(404, 40400, "单据不存在")
+    if row.project_id is None:
+        _guard_template(user)
+    name, project_id = row.name, row.project_id
+    db.delete(row)
+    write_audit(
+        db,
+        request=request,
+        user=user,
+        action="pm.document.delete",
+        target_type="pm_document",
+        target_id=item_id,
+        summary=f"删除配套单据 {name}（项目 {project_id if project_id else '模板'}）",
     )
+    db.commit()
+    return Envelope(data={"deleted": item_id})
 
 
 def _check_dates(start: date | None, end: date | None) -> None:

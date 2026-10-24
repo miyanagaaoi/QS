@@ -392,23 +392,62 @@ class PmStage(Base):
 
 
 class PmProcess(Base):
-    """施工实施步骤明细（全局参考表，一套可编辑）。"""
+    """施工实施步骤明细（CH-005：模板 + 项目副本）。
+
+    `project_id` 为 NULL 表示**标准模板**（管理员维护，全公司一套）；
+    非空表示某个项目的副本（新建项目时从模板复制，项目内可增删改，互不影响）。
+    进度字段只对项目副本有意义（模板不跟踪进度）。
+    """
 
     __tablename__ = "pm_process"
+    __table_args__ = (
+        Index("ix_pm_process_project", "project_id", "seq"),
+        Index("ix_pm_process_status", "project_id", "status"),
+    )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    project_id: Mapped[int | None] = mapped_column(ForeignKey("pm_project.id"))
     seq: Mapped[int] = mapped_column(Integer, nullable=False)
     group_name: Mapped[str] = mapped_column(String(20), nullable=False)
     name: Mapped[str] = mapped_column(String(60), nullable=False)
     content: Mapped[str | None] = mapped_column(String(400))
     qc_point: Mapped[str | None] = mapped_column(String(300))
     predecessor: Mapped[str | None] = mapped_column(String(100))
+    # —— 进度（仅项目副本使用）——
+    # todo 未开始 / doing 进行中 / done 已完成 / paused 暂停
+    status: Mapped[str] = mapped_column(String(12), default="todo", nullable=False)
+    assignee: Mapped[str | None] = mapped_column(String(50))  # 该工序负责人
+    started_at: Mapped[datetime | None] = mapped_column(DateTime)  # 首次转"进行中"
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime)  # 转"已完成"
+    progress_remark: Mapped[str | None] = mapped_column(String(200))
+
+
+class PmProcessLog(Base):
+    """工序状态变更历史（CH-005）—— 追加写入，永不修改或删除。
+
+    每次状态变更记一条（原状态 → 新状态 + 备注 + 操作人），
+    对应 PRD `FR-PM-22`：用于追溯"谁在什么时候把哪道工序推进到哪一步"。
+    """
+
+    __tablename__ = "pm_process_log"
+    __table_args__ = (Index("ix_pm_process_log_lookup", "process_id", "id"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    process_id: Mapped[int] = mapped_column(ForeignKey("pm_process.id"), nullable=False)
+    project_id: Mapped[int | None] = mapped_column(ForeignKey("pm_project.id"))
+    from_status: Mapped[str | None] = mapped_column(String(12))
+    to_status: Mapped[str] = mapped_column(String(12), nullable=False)
+    remark: Mapped[str | None] = mapped_column(String(200))
+    operator_id: Mapped[int | None] = mapped_column(ForeignKey("user.id"))
+    operator_name: Mapped[str | None] = mapped_column(String(50))
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=app_now, nullable=False)
 
 
 class PmCostPoint(Base):
-    """预算决算管理点（全局参考表，一套可编辑）。"""
+    """预算决算管理点（CH-005：模板 + 项目副本；project_id 为 NULL 表示模板）。"""
 
     __tablename__ = "pm_cost_point"
+    project_id: Mapped[int | None] = mapped_column(ForeignKey("pm_project.id"))
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     seq: Mapped[int] = mapped_column(Integer, nullable=False)
@@ -420,9 +459,10 @@ class PmCostPoint(Base):
 
 
 class PmDocument(Base):
-    """预算决算配套单据（全局参考表，一套可编辑）。"""
+    """预算决算配套单据（CH-005：模板 + 项目副本；project_id 为 NULL 表示模板）。"""
 
     __tablename__ = "pm_document"
+    project_id: Mapped[int | None] = mapped_column(ForeignKey("pm_project.id"))
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     seq: Mapped[int] = mapped_column(Integer, nullable=False)

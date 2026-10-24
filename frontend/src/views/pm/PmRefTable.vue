@@ -1,34 +1,50 @@
 <script setup>
 /**
- * PmRefTable — 项目管理里的「全局参考表」通用表格（施工工序 / 预算决算管理点 / 配套单据）
+ * PmRefTable — 参考表通用表格（预算决算管理点 / 配套单据）
  * ---------------------------------------------------------------------------
- * 为什么做成组件：这三张表结构一致（只读列表 + 单行编辑），差异只在列定义，
- * 抽成一个组件避免三份几乎相同的代码（也符合 PRD/AGENTS 的"同一件事只记一处"）。
+ * CH-005 起这两张表分"标准模板"与"项目副本"，差异只在列定义与接口，
+ * 因此仍抽成一个组件：表格 + 单行编辑弹窗 + 新增 + 删除。
  *
- * 数据是**全局一套**（不按项目复制），首次启动由 `backend/app/pm_seed.py` 写入默认值，
- * 之后以数据库为准。
+ * 父页面负责：作用域（模板/项目）切换、加载数据、调用保存/新增/删除接口。
  */
-import { computed, reactive, ref } from 'vue'
-import { ElMessage } from 'element-plus'
+import { computed, reactive } from 'vue'
+import { ElMessage, ElMessageBox } from 'element-plus'
 
 const props = defineProps({
   title: { type: String, required: true },
   hint: { type: String, default: '' },
-  /** [{ prop, label, width?, minWidth?, textarea? }] */
+  /** [{ prop, label, width?, minWidth?, textarea?, required? }] */
   columns: { type: Array, required: true },
   rows: { type: Array, default: () => [] },
-  /** (row) => Promise<void> 保存单行 */
-  onSave: { type: Function, required: true },
   loading: { type: Boolean, default: false },
-  /** 表格分组列：按该 prop 合并展示分组标签（可选） */
-  groupProp: { type: String, default: '' },
+  /** (row) => Promise<void> */
+  onSave: { type: Function, required: true },
+  /** (form) => Promise<void>，不传则不显示「新增」 */
+  onCreate: { type: Function, default: null },
+  /** (row) => Promise<void>，不传则不显示「删除」 */
+  onDelete: { type: Function, default: null },
 })
 
-const dialog = reactive({ visible: false, saving: false, form: {}, id: null })
-
+const dialog = reactive({ visible: false, saving: false, mode: 'edit', form: {}, id: null })
 const total = computed(() => props.rows.length)
 
+function emptyForm() {
+  const form = {}
+  props.columns.forEach((col) => {
+    form[col.prop] = ''
+  })
+  return form
+}
+
+function openCreate() {
+  dialog.mode = 'create'
+  dialog.id = null
+  dialog.form = emptyForm()
+  dialog.visible = true
+}
+
 function openEdit(row) {
+  dialog.mode = 'edit'
   dialog.id = row.id
   dialog.form = { ...row }
   dialog.visible = true
@@ -44,52 +60,83 @@ async function submit() {
   }
   dialog.saving = true
   try {
-    await props.onSave({ ...dialog.form })
-    ElMessage.success('已保存')
+    if (dialog.mode === 'create') {
+      await props.onCreate({ ...dialog.form })
+      ElMessage.success('已新增')
+    } else {
+      await props.onSave({ ...dialog.form })
+      ElMessage.success('已保存')
+    }
     dialog.visible = false
   } catch {
-    /* request.js 已统一提示后端原文 */
+    // request.js 已统一提示后端原文
   } finally {
     dialog.saving = false
+  }
+}
+
+async function removeRow(row) {
+  try {
+    await ElMessageBox.confirm(
+      `删除「${row.name || row.point}」？只删当前范围内这一条，不影响标准模板与其它项目。`,
+      '删除',
+      { type: 'warning', confirmButtonText: '删除', cancelButtonText: '取消' },
+    )
+    await props.onDelete(row)
+    ElMessage.success('已删除')
+  } catch {
+    /* 取消或后端拒绝 */
   }
 }
 </script>
 
 <template>
-  <div v-loading="loading" class="pm-ref">
-    <header class="page-head">
+  <section v-loading="loading" class="pm-ref-card">
+    <header class="pm-ref-card__head">
       <div>
-        <h2 class="page-head__title">{{ title }}</h2>
-        <p class="page-head__sub">{{ hint }}</p>
+        <h3 class="pm-ref-card__title">{{ title }}</h3>
+        <p class="pm-ref-card__hint">{{ hint }}</p>
       </div>
-      <span class="page-head__count">共 {{ total }} 条</span>
+      <div class="pm-ref-card__actions">
+        <span class="pm-ref-card__count">共 {{ total }} 条</span>
+        <el-button v-if="onCreate" size="small" type="primary" @click="openCreate">
+          + 新增
+        </el-button>
+      </div>
     </header>
 
-    <section class="card">
-      <el-table :data="rows" border size="small" style="width: 100%" row-key="id">
-        <el-table-column
-          v-for="col in columns"
-          :key="col.prop"
-          :prop="col.prop"
-          :label="col.label"
-          :width="col.width"
-          :min-width="col.minWidth"
-          :show-overflow-tooltip="!col.textarea"
-        >
-          <template #default="{ row }">
-            <span v-if="col.prop === 'seq'" class="num">{{ row.seq }}</span>
-            <span v-else>{{ row[col.prop] ?? '—' }}</span>
-          </template>
-        </el-table-column>
-        <el-table-column label="操作" width="80" fixed="right">
-          <template #default="{ row }">
-            <el-button link type="primary" @click="openEdit(row)">编辑</el-button>
-          </template>
-        </el-table-column>
-      </el-table>
-    </section>
+    <el-table :data="rows" border size="small" style="width: 100%" row-key="id">
+      <el-table-column
+        v-for="col in columns"
+        :key="col.prop"
+        :prop="col.prop"
+        :label="col.label"
+        :width="col.width"
+        :min-width="col.minWidth"
+        :show-overflow-tooltip="!col.textarea"
+      >
+        <template #default="{ row }">
+          <span v-if="col.prop === 'seq'" class="num">{{ row.seq }}</span>
+          <span v-else>{{ row[col.prop] ?? '—' }}</span>
+        </template>
+      </el-table-column>
+      <el-table-column label="操作" :width="onDelete ? 110 : 80" fixed="right">
+        <template #default="{ row }">
+          <el-button link type="primary" @click="openEdit(row)">编辑</el-button>
+          <el-button v-if="onDelete" link type="danger" @click="removeRow(row)">删除</el-button>
+        </template>
+      </el-table-column>
+      <template #empty>
+        <div class="pm-ref-card__empty">暂无数据</div>
+      </template>
+    </el-table>
 
-    <el-dialog v-model="dialog.visible" :title="`编辑：${title}`" width="640px" :close-on-click-modal="false">
+    <el-dialog
+      v-model="dialog.visible"
+      :title="`${dialog.mode === 'create' ? '新增' : '编辑'}：${title}`"
+      width="640px"
+      :close-on-click-modal="false"
+    >
       <el-form label-width="120px" label-position="right">
         <el-form-item
           v-for="col in columns"
@@ -109,48 +156,55 @@ async function submit() {
         <el-button type="primary" :loading="dialog.saving" @click="submit">保存</el-button>
       </template>
     </el-dialog>
-  </div>
+  </section>
 </template>
 
 <style scoped lang="scss">
 @use '@/styles/variables' as v;
 @use '@/styles/breakpoints' as bp;
 
-.pm-ref {
-  display: flex;
-  flex-direction: column;
-  gap: v.$sp-4;
+.pm-ref-card {
+  padding: v.$sp-4;
+  background: v.$surface;
+  border: 1px solid v.$line;
+  border-radius: v.$r-md;
 }
 
-.page-head {
+.pm-ref-card__head {
   display: flex;
   align-items: flex-start;
   gap: v.$sp-3;
+  margin-bottom: v.$sp-3;
 }
 
-.page-head__title {
+.pm-ref-card__title {
   margin: 0;
-  font-size: v.$fs-title;
+  font-size: v.$fs-lg;
 }
 
-.page-head__sub {
+.pm-ref-card__hint {
   margin: 3px 0 0;
-  font-size: v.$fs-sm;
-  color: v.$ink-500;
+  font-size: v.$fs-xs;
+  color: v.$ink-400;
 }
 
-.page-head__count {
+.pm-ref-card__actions {
   margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: v.$sp-2;
+}
+
+.pm-ref-card__count {
   font-size: v.$fs-sm;
   color: v.$ink-400;
   font-family: v.$font-num;
 }
 
-.card {
-  padding: v.$sp-4;
-  background: v.$surface;
-  border: 1px solid v.$line;
-  border-radius: v.$r-md;
+.pm-ref-card__empty {
+  padding: v.$sp-3 0;
+  color: v.$ink-400;
+  font-size: v.$fs-sm;
 }
 
 .num {
@@ -158,7 +212,7 @@ async function submit() {
 }
 
 @include bp.mobile {
-  .card {
+  .pm-ref-card {
     padding: v.$sp-2;
     overflow-x: auto;
   }
