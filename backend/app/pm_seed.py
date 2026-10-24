@@ -68,6 +68,15 @@ PM_DEMO_PROJECTS = [
 ]
 
 
+def _split_nodes(text: str | None) -> list[str]:
+    """把 "A → B → C" 这种审批流转文本拆成节点列表（与 database 迁移口径一致）。"""
+    if not text:
+        return []
+    for sep in ("→", "->", ">", "、"):
+        text = text.replace(sep, "|")
+    return [x.strip() for x in text.split("|") if x.strip()]
+
+
 def ensure_pm_seed(db) -> None:
     """把三张参考表写入默认数据（仅在表为空时执行，不覆盖用户修改）。"""
     from sqlalchemy import func, select
@@ -84,5 +93,22 @@ def ensure_pm_seed(db) -> None:
                                action=action, risk=risk, owner=owner))
     if not db.scalar(select(func.count()).select_from(PmDocument)):
         for seq, point, name, usage, fields, flow, archive in PM_DOCUMENT_SEED:
+            # CH-007：同时写入结构化字段（节点列表 + 归档文件清单）。
+            # 注意：init_db 的迁移在 seed 之前执行，因此这里必须自己生成，
+            # 否则全新安装的库模板会没有节点/文件。
+            nodes = [x.strip() for x in _split_nodes(flow) if x.strip()]
+            files = []
+            if archive and archive.strip():
+                files.append(
+                    {
+                        "name": archive.strip()[:60],
+                        "note": "由「归档要求」文本生成，可在编辑弹窗改成具体文件名",
+                        "required": True,
+                        "archived": False,
+                        "archived_at": None,
+                        "archived_by": None,
+                    }
+                )
             db.add(PmDocument(seq=seq, cost_point=point, name=name, usage=usage,
-                              required_fields=fields, flow=flow, archive=archive))
+                              required_fields=fields, flow=flow, archive=archive,
+                              flow_nodes=nodes, current_node=None, archive_files=files))

@@ -490,3 +490,160 @@ def test_template_rejects_progress_update(client, admin_token):
     )
     assert resp.status_code == 409
     assert resp.json()["code"] == 40900
+
+
+# ===========================================================================
+# CH-007：审批节点列表 + 归档文件清单 + 批量归档
+# ===========================================================================
+def _first_doc(client, project_id: int | None, token: str) -> dict:
+    path = "/api/pm/documents" if project_id is None else f"/api/pm/documents?project_id={project_id}"
+    return client.get(path, headers=auth(token)).json()["data"][0]
+
+
+def test_document_template_has_nodes_and_files(client, admin_token):
+    doc = _first_doc(client, None, admin_token)
+    assert doc["flow_nodes"], "模板应有审批节点"
+    assert all(isinstance(n, str) and n.strip() for n in doc["flow_nodes"])
+    assert doc["current_node"] is None, "标准模板不跟踪当前节点"
+    assert doc["archive_total"] >= 1
+    assert doc["archive_files"][0]["archived"] is False
+
+
+def test_document_node_advance_and_history(client, admin_token, buyer_token):
+    project = _create(client, admin_token, name="单据节点项目")
+    doc = _first_doc(client, project["id"], buyer_token)
+    nodes = doc["flow_nodes"]
+    assert len(nodes) >= 2
+    assert doc["current_node"] == nodes[0], "新项目应从第一个节点开始"
+
+    resp = client.post(
+        f"/api/pm/documents/{doc['id']}/node", json={"node": nodes[1]}, headers=auth(buyer_token)
+    )
+    assert resp.status_code == 200, resp.text
+    assert resp.json()["data"]["current_node"] == nodes[1]
+
+    again = client.post(
+        f"/api/pm/documents/{doc['id']}/node", json={"node": nodes[1]}, headers=auth(buyer_token)
+    )
+    assert again.status_code == 400
+
+    bad = client.post(
+        f"/api/pm/documents/{doc['id']}/node", json={"node": "不存在的节点"}, headers=auth(buyer_token)
+    )
+    assert bad.status_code == 400
+
+    logs = client.get(
+        f"/api/pm/documents/{doc['id']}/logs", headers=auth(admin_token)
+    ).json()["data"]
+    assert logs[0]["kind"] == "node"
+    assert logs[0]["from_value"] == nodes[0] and logs[0]["to_value"] == nodes[1]
+
+
+def test_document_template_rejects_node_and_archive(client, admin_token):
+    doc = _first_doc(client, None, admin_token)
+    node_resp = client.post(
+        f"/api/pm/documents/{doc['id']}/node",
+        json={"node": doc["flow_nodes"][0]},
+        headers=auth(admin_token),
+    )
+    assert node_resp.status_code == 409
+    archive_resp = client.post(
+        f"/api/pm/documents/{doc['id']}/archive",
+        json={"file_name": doc["archive_files"][0]["name"], "archived": True},
+        headers=auth(admin_token),
+    )
+    assert archive_resp.status_code == 409
+
+
+def test_document_archive_toggle_and_completion(client, admin_token):
+    project = _create(client, admin_token, name="单据归档项目")
+    doc = _first_doc(client, project["id"], admin_token)
+    files = doc["archive_files"]
+
+    first = client.post(
+        f"/api/pm/documents/{doc['id']}/archive",
+        json={"file_name": files[0]["name"], "archived": True},
+        headers=auth(admin_token),
+    )
+    assert first.status_code == 200
+    body = first.json()["data"]
+    assert body["archive_done"] == 1
+    assert body["archive_files"][0]["archived_at"]
+
+    dup = client.post(
+        f"/api/pm/documents/{doc['id']}/archive",
+        json={"file_name": files[0]["name"], "archived": True},
+        headers=auth(admin_token),
+    )
+    assert dup.status_code == 400
+
+    added = client.post(
+        f"/api/pm/documents/{doc['id']}/files",
+        json={"name": "监理验收意见单", "note": "需监理签认"},
+        headers=auth(admin_token),
+    )
+    assert added.status_code == 200
+    assert added.json()["data"]["archived"] is False
+    assert added.json()["data"]["archive_total"] == len(files) + 1
+
+    dup_file = client.post(
+        f"/api/pm/documents/{doc['id']}/files",
+        json={"name": "监理验收意见单"},
+        headers=auth(admin_token),
+    )
+    assert dup_file.status_code == 400
+
+    undo = client.post(
+        f"/api/pm/documents/{doc['id']}/archive",
+        json={"file_name": files[0]["name"], "archived": False},
+        headers=auth(admin_token),
+    )
+    assert undo.status_code == 200
+    assert undo.json()["data"]["archive_done"] == 0
+
+
+def test_document_batch_archive(client, admin_token):
+    project = _create(client, admin_token, name="批量归档项目")
+    docs = client.get(
+        f"/api/pm/documents?project_id={project['id']}", headers=auth(admin_token)
+    ).json()["data"]
+    ids = [d["id"] for d in docs[:3]]
+    template_id = _first_doc(client, None, admin_token)["id"]
+
+    resp = client.post(
+        "/api/pm/documents/archive-batch",
+        json={"ids": ids + [template_id], "archived": True},
+        headers=auth(admin_token),
+    )
+    assert resp.status_code == 200, resp.text
+    body = resp.json()["data"]
+    assert body["updated"] == 3
+    assert template_id in body["skipped"], "模板行应被跳过"
+
+    after = client.get(
+        f"/api/pm/documents?project_id={project['id']}", headers=auth(admin_token)
+    ).json()["data"]
+    assert all(d["archived"] for d in after[:3])
+
+
+def test_document_edit_keeps_archive_state(client, admin_token):
+    project = _create(client, admin_token, name="单据编辑保留归档")
+    doc = _first_doc(client, project["id"], admin_token)
+    payload = {
+        "name": doc["name"],
+        "flow_nodes": doc["flow_nodes"],
+        "archive_files": [
+            {"name": f["name"], "note": f.get("note"), "required": True} for f in doc["archive_files"]
+        ],
+    }
+    client.post(
+        f"/api/pm/documents/{doc['id']}/archive",
+        json={"file_name": doc["archive_files"][0]["name"], "archived": True},
+        headers=auth(admin_token),
+    )
+    saved = client.put(
+        f"/api/pm/documents/{doc['id']}", json=payload, headers=auth(admin_token)
+    )
+    assert saved.status_code == 200, saved.text
+    state = saved.json()["data"]
+    assert state["archive_files"][0]["archived"] is True, "编辑不应清掉已勾选的归档状态"

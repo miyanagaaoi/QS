@@ -473,5 +473,34 @@ class PmDocument(Base):
     name: Mapped[str] = mapped_column(String(60), nullable=False)
     usage: Mapped[str | None] = mapped_column(String(200))
     required_fields: Mapped[str | None] = mapped_column(String(400))
-    flow: Mapped[str | None] = mapped_column(String(200))
-    archive: Mapped[str | None] = mapped_column(String(200))
+    flow: Mapped[str | None] = mapped_column(String(200))  # 旧版单行文本，保留仅供历史参考
+    archive: Mapped[str | None] = mapped_column(String(200))  # 同上
+    # —— CH-007：审批流转改为「节点列表 + 当前节点」——
+    flow_nodes: Mapped[list | None] = mapped_column(JSON)       # ["造价编制","财务复核","分管领导批准"]
+    current_node: Mapped[str | None] = mapped_column(String(60))  # 当前停在哪个节点（项目副本才有）
+    # —— CH-007：归档要求改为「文件清单 + 归档状态」——
+    archive_files: Mapped[list | None] = mapped_column(JSON)    # [{"name","note","required","archived","archived_at","archived_by"}]
+    archived_at: Mapped[datetime | None] = mapped_column(DateTime)  # 全部归档文件完成的时间
+    archived_by: Mapped[str | None] = mapped_column(String(50))
+
+class PmDocumentLog(Base):
+    """配套单据的节点推进 / 归档操作历史（CH-007）——追加写入，不可改删。
+
+    kind:
+      - `node`    审批节点变更：from_value=原节点，to_value=新节点
+      - `archive` 归档勾选：to_value=文件名，remark='归档' / '撤销归档'
+    """
+
+    __tablename__ = "pm_document_log"
+    __table_args__ = (Index("ix_pm_document_log_lookup", "document_id", "id"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    document_id: Mapped[int] = mapped_column(ForeignKey("pm_document.id"), nullable=False)
+    project_id: Mapped[int | None] = mapped_column(ForeignKey("pm_project.id"))
+    kind: Mapped[str] = mapped_column(String(12), nullable=False)  # node | archive
+    from_value: Mapped[str | None] = mapped_column(String(60))
+    to_value: Mapped[str | None] = mapped_column(String(60))
+    remark: Mapped[str | None] = mapped_column(String(120))
+    operator_id: Mapped[int | None] = mapped_column(ForeignKey("user.id"))
+    operator_name: Mapped[str | None] = mapped_column(String(50))
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=app_now, nullable=False)

@@ -49,6 +49,7 @@ from ..models import (
     PM_STAGE_TEMPLATE,
     PmCostPoint,
     PmDocument,
+    PmDocumentLog,
     PmProcess,
     PmProcessLog,
     PmProject,
@@ -243,6 +244,12 @@ def _copy_cost_point_row(tpl: PmCostPoint, project_id: int) -> PmCostPoint:
 
 
 def _copy_document_row(tpl: PmDocument, project_id: int) -> PmDocument:
+    """复制单据到项目：节点与文件清单继承模板；归档状态清零、当前节点回到第一步。"""
+    nodes = list(tpl.flow_nodes or [])
+    files = [
+        {**f, "archived": False, "archived_at": None, "archived_by": None}
+        for f in (tpl.archive_files or [])
+    ]
     return PmDocument(
         project_id=project_id,
         seq=tpl.seq,
@@ -252,6 +259,9 @@ def _copy_document_row(tpl: PmDocument, project_id: int) -> PmDocument:
         required_fields=tpl.required_fields,
         flow=tpl.flow,
         archive=tpl.archive,
+        flow_nodes=nodes,
+        current_node=nodes[0] if nodes else None,
+        archive_files=files,
     )
 
 
@@ -280,6 +290,14 @@ def _copy_reference_tables(db: Session, project: PmProject, *, only_missing: boo
                 if ids:
                     for log in db.scalars(
                         select(PmProcessLog).where(PmProcessLog.process_id.in_(ids))
+                    ).all():
+                        db.delete(log)
+                    db.flush()
+            if model is PmDocument:
+                ids = [row.id for row in rows]
+                if ids:
+                    for log in db.scalars(
+                        select(PmDocumentLog).where(PmDocumentLog.document_id.in_(ids))
                     ).all():
                         db.delete(log)
                     db.flush()
@@ -490,6 +508,10 @@ def delete_project(
     name = project.name
     # 先删工序变更历史，再删副本行（外键方向：log → process）
     for log in db.scalars(select(PmProcessLog).where(PmProcessLog.project_id == project_id)).all():
+        db.delete(log)
+    for log in db.scalars(
+        select(PmDocumentLog).where(PmDocumentLog.project_id == project_id)
+    ).all():
         db.delete(log)
     db.flush()
     for model in (PmProcess, PmCostPoint, PmDocument):
@@ -1052,118 +1074,6 @@ def delete_cost_point(
         target_type="pm_cost_point",
         target_id=item_id,
         summary=f"删除管理点 {point}（项目 {project_id if project_id else '模板'}）",
-    )
-    db.commit()
-    return Envelope(data={"deleted": item_id})
-
-
-# ---------- 预算决算配套单据 ----------
-@router.get("/documents", response_model=Envelope[list[PmDocumentOut]], summary="预算决算配套单据")
-def list_documents(
-    project_id: int | None = Query(None),
-    db: Session = Depends(get_db),
-    user: User = Depends(require_internal),
-):
-    if project_id:
-        _ensure_project_exists(db, project_id)
-        db.commit()
-        rows = db.scalars(
-            select(PmDocument)
-            .where(PmDocument.project_id == project_id)
-            .order_by(PmDocument.seq)
-        ).all()
-    else:
-        _guard_template(user)
-        rows = db.scalars(
-            select(PmDocument).where(PmDocument.project_id.is_(None)).order_by(PmDocument.seq)
-        ).all()
-    return Envelope(data=[_document_out(r) for r in rows])
-
-
-@router.post("/documents", response_model=Envelope[PmDocumentOut], summary="新增配套单据")
-def create_document(
-    payload: PmDocumentIn,
-    project_id: int | None = Query(None),
-    db: Session = Depends(get_db),
-    user: User = Depends(require_internal),
-):
-    if not project_id:
-        _guard_template(user)
-        template = True
-    else:
-        _ensure_project_exists(db, project_id)
-        template = False
-    max_seq = db.scalar(
-        select(func.max(PmDocument.seq)).where(
-            PmDocument.project_id.is_(None) if template else PmDocument.project_id == project_id
-        )
-    )
-    row = PmDocument(
-        project_id=None if template else project_id,
-        seq=int(payload.seq or (max_seq or 0) + 1),
-        cost_point=_str_or_none(payload.cost_point),
-        name=(payload.name or "新增单据").strip(),
-        usage=_str_or_none(payload.usage),
-        required_fields=_str_or_none(payload.required_fields),
-        flow=_str_or_none(payload.flow),
-        archive=_str_or_none(payload.archive),
-    )
-    db.add(row)
-    db.commit()
-    db.refresh(row)
-    return Envelope(data=_document_out(row))
-
-
-@router.put("/documents/{item_id}", response_model=Envelope[PmDocumentOut], summary="修改配套单据")
-def update_document(
-    item_id: int,
-    payload: PmDocumentIn,
-    db: Session = Depends(get_db),
-    user: User = Depends(require_internal),
-):
-    row = db.get(PmDocument, item_id)
-    if row is None:
-        raise _err(404, 40400, "单据不存在")
-    if row.project_id is None:
-        _guard_template(user)
-    if payload.seq is not None:
-        row.seq = payload.seq
-    if payload.name is not None:
-        row.name = payload.name.strip()
-    row.cost_point = payload.cost_point if payload.cost_point is not None else row.cost_point
-    row.usage = payload.usage if payload.usage is not None else row.usage
-    row.required_fields = (
-        payload.required_fields if payload.required_fields is not None else row.required_fields
-    )
-    row.flow = payload.flow if payload.flow is not None else row.flow
-    row.archive = payload.archive if payload.archive is not None else row.archive
-    db.commit()
-    db.refresh(row)
-    return Envelope(data=_document_out(row))
-
-
-@router.delete("/documents/{item_id}", response_model=Envelope[dict], summary="删除配套单据")
-def delete_document(
-    item_id: int,
-    request: Request,
-    db: Session = Depends(get_db),
-    user: User = Depends(require_internal),
-):
-    row = db.get(PmDocument, item_id)
-    if row is None:
-        raise _err(404, 40400, "单据不存在")
-    if row.project_id is None:
-        _guard_template(user)
-    name, project_id = row.name, row.project_id
-    db.delete(row)
-    write_audit(
-        db,
-        request=request,
-        user=user,
-        action="pm.document.delete",
-        target_type="pm_document",
-        target_id=item_id,
-        summary=f"删除配套单据 {name}（项目 {project_id if project_id else '模板'}）",
     )
     db.commit()
     return Envelope(data={"deleted": item_id})

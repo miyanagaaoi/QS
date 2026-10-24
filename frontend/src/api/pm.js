@@ -1,26 +1,28 @@
 /**
- * 项目管理接口（CH-002 + CH-005，前缀 /api/pm）
+ * 项目管理接口（CH-002 + CH-005 + CH-007，前缀 /api/pm）
  * ---------------------------------------------------------------------------
  * 与报价模块**完全独立**：不引用 rfq 的任何数据。
  *
- * CH-005 起三张参考表分"标准模板"与"项目副本"两套数据：
- *  - 不传 projectId → 标准模板（**只有管理员**能读/改，后端强制）
+ * 三张参考表（工序 / 管理点 / 配套单据）都分两套数据：
+ *  - 不传 projectId → 标准模板（**只有管理员**能读改，后端强制）
  *  - 传 projectId   → 该项目副本（管理员与采购员都能改）
- * 副本在首次访问时按模板自动补齐，也可以在项目里"按模板重置"。
+ *
+ * CH-007：配套单据的审批流转改为「节点列表 + 当前节点」，归档要求改为
+ * 「归档文件清单 + 逐项勾选」，并支持列表页多选批量归档。
  */
 import { del, get, post, put } from './request'
 
-/** 看板汇总：summary / stage_distribution / projects / upcoming（含工序完成数） */
+// ---------------------------------------------------------------------------
+// 看板与项目
+// ---------------------------------------------------------------------------
 export function getPmBoard() {
   return get('/pm/board')
 }
 
-/** 项目列表 */
 export function listProjects(params = {}) {
   return get('/pm/projects', params)
 }
 
-/** 项目详情（含 8 阶段工期计划表） */
 export function getProject(id) {
   return get(`/pm/projects/${id}`)
 }
@@ -33,22 +35,20 @@ export function updateProject(id, payload) {
   return put(`/pm/projects/${id}`, payload)
 }
 
-/** 删除项目（仅管理员；级联删除参考表副本） */
+/** 删除项目（仅管理员；级联删除副本与历史） */
 export function deleteProject(id) {
   return del(`/pm/projects/${id}`)
 }
 
-/** 批量保存阶段表 */
 export function saveProjectStages(id, stages) {
   return put(`/pm/projects/${id}/stages`, stages)
 }
 
-/** 按标准模板重置阶段表 */
 export function resetProjectStages(id) {
   return post(`/pm/projects/${id}/stages/reset`)
 }
 
-/** 按模板重置该项目三张参考表副本（工序/管理点/单据） */
+/** 按模板重置该项目三张参考表副本 */
 export function resetProjectCopies(id) {
   return post(`/pm/projects/${id}/copies/reset`)
 }
@@ -56,7 +56,6 @@ export function resetProjectCopies(id) {
 // ---------------------------------------------------------------------------
 // 施工实施步骤明细
 // ---------------------------------------------------------------------------
-/** @param {number} [projectId] 不传 = 标准模板（仅管理员） */
 export function listPmProcesses(projectId) {
   return get('/pm/processes', projectId ? { project_id: projectId } : {})
 }
@@ -83,13 +82,13 @@ export function updatePmProcessProgress(id, remark) {
   return post(`/pm/processes/${id}/progress`, { remark })
 }
 
-/** 工序状态变更历史（按时间倒序） */
+/** 工序状态/进度历史（按时间倒序） */
 export function listPmProcessLogs(id) {
   return get(`/pm/processes/${id}/logs`)
 }
 
 // ---------------------------------------------------------------------------
-// 预算决算管理点 / 配套单据
+// 预算决算管理点
 // ---------------------------------------------------------------------------
 export function listPmCostPoints(projectId) {
   return get('/pm/cost-points', projectId ? { project_id: projectId } : {})
@@ -107,6 +106,9 @@ export function deletePmCostPoint(id) {
   return del(`/pm/cost-points/${id}`)
 }
 
+// ---------------------------------------------------------------------------
+// 预算决算配套单据（CH-007）
+// ---------------------------------------------------------------------------
 export function listPmDocuments(projectId) {
   return get('/pm/documents', projectId ? { project_id: projectId } : {})
 }
@@ -121,4 +123,29 @@ export function updatePmDocument(id, payload) {
 
 export function deletePmDocument(id) {
   return del(`/pm/documents/${id}`)
+}
+
+/** 推进/回退到某个审批节点（节点必须在 flow_nodes 里） */
+export function changePmDocumentNode(id, node) {
+  return post(`/pm/documents/${id}/node`, { node })
+}
+
+/** 勾选/取消某个归档文件 */
+export function togglePmDocumentArchive(id, fileName, archived) {
+  return post(`/pm/documents/${id}/archive`, { file_name: fileName, archived })
+}
+
+/** 列表页多选：批量归档 / 撤销归档（作用于选中单据的全部文件） */
+export function batchPmDocumentArchive(ids, archived = true) {
+  return post('/pm/documents/archive-batch', { ids, archived })
+}
+
+/** 列表页给某张单据追加一条归档文件要求 */
+export function addPmDocumentFile(id, payload) {
+  return post(`/pm/documents/${id}/files`, payload)
+}
+
+/** 单据节点/归档操作历史 */
+export function listPmDocumentLogs(id) {
+  return get(`/pm/documents/${id}/logs`)
 }

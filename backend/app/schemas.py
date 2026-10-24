@@ -734,18 +734,82 @@ class PmCostPointOut(PmCostPointIn):
     project_id: int | None = None   # None = 标准模板
 
 
+class PmArchiveFile(BaseModel):
+    """归档文件要求（CH-007）：清单里的一项。"""
+
+    name: str = Field(min_length=1, max_length=60)
+    note: str | None = Field(default=None, max_length=100)
+    required: bool = True
+    archived: bool = False
+    archived_at: datetime | None = None
+    archived_by: str | None = None
+
+
 class PmDocumentIn(BaseModel):
     seq: int | None = None
     cost_point: str | None = Field(default=None, max_length=60)
     name: str | None = Field(default=None, max_length=60)
     usage: str | None = Field(default=None, max_length=200)
     required_fields: str | None = Field(default=None, max_length=400)
-    flow: str | None = Field(default=None, max_length=200)
-    archive: str | None = Field(default=None, max_length=200)
+    # CH-007：审批节点有序列表（编辑弹窗里增删排序）
+    flow_nodes: list[str] | None = None
+    # CH-007：归档文件清单
+    archive_files: list[PmArchiveFile] | None = None
 
 
-class PmDocumentOut(PmDocumentIn):
+class PmDocumentOut(BaseModel):
     id: int
     seq: int
+    cost_point: str | None = None
     name: str
+    usage: str | None = None
+    required_fields: str | None = None
     project_id: int | None = None   # None = 标准模板
+    # CH-007
+    flow_nodes: list[str] = Field(default_factory=list)
+    current_node: str | None = None
+    archive_files: list[PmArchiveFile] = Field(default_factory=list)
+    archive_total: int = 0
+    archive_done: int = 0
+    archived: bool = False
+    archived_at: datetime | None = None
+    archived_by: str | None = None
+
+
+class PmDocumentNodeIn(BaseModel):
+    """推进/回退审批节点。"""
+
+    node: str = Field(min_length=1, max_length=60)
+
+
+class PmDocumentArchiveIn(BaseModel):
+    """勾选/取消某个归档文件。"""
+
+    file_name: str = Field(min_length=1, max_length=60)
+    archived: bool = True
+
+
+class PmDocumentFileIn(BaseModel):
+    """在列表页追加一条归档文件要求。"""
+
+    name: str = Field(min_length=1, max_length=60)
+    note: str | None = Field(default=None, max_length=100)
+    required: bool = True
+
+
+class PmDocumentBatchArchiveIn(BaseModel):
+    """列表页多选批量标记归档。"""
+
+    ids: list[int] = Field(min_length=1)
+    archived: bool = True
+
+
+class PmDocumentLogOut(BaseModel):
+    id: int
+    document_id: int
+    kind: str
+    from_value: str | None = None
+    to_value: str | None = None
+    remark: str | None = None
+    operator_name: str | None = None
+    created_at: datetime
