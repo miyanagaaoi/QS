@@ -107,6 +107,18 @@ python scripts/demo_data.py --base http://127.0.0.1:8000   --db-url sqlite:////o
 | `TZ` | `Asia/Shanghai` | 容器时区，与后端北京时间口径一致 |
 | `APT_MIRROR` / `PIP_INDEX` / `NPM_REGISTRY` | 国内镜像源 | 构建加速；海外构建可覆盖为官方源 |
 
+### 3.1 默认账号
+
+| 角色 | 账号 | 密码来源 | 创建条件 |
+|---|---|---|---|
+| 管理员 | `admin` | `INITIAL_ADMIN_PASSWORD`（不设则随机生成并打印到启动日志） | 始终创建 |
+| 采购员 | `wangcaigou` | `XUNJIA_BUYER_PASSWORD`（默认 `buyer123`） | 仅 `SEED_DEMO=1` |
+| 供货商 | `hengxin_wenju` / `xinda_bg` / `huitong_sm` / `wanlong_wz` / `licheng_gyl` | `XUNJIA_DEMO_PASSWORD`（默认 `supplier123`） | 仅 `SEED_DEMO=1` |
+| 验收专用管理员 | `e2e_admin` | `E2eAdmin2026` | 仅 `SEED_DEMO=1`（供 `scripts/e2e_acceptance.py` 使用，避免动到 `admin`） |
+
+> **初始账号不强制首次登录改密**（2026-10 变更，见 PRD `FR-ACC-15`）；需要强制时在账号管理页建号/重置时打开开关。
+> 生产环境请务必替换管理员密码，并关闭 `SEED_DEMO`。
+
 ## 4. 数据持久化
 
 | 挂载 | 内容 | 说明 |
