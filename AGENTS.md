@@ -12,6 +12,7 @@
 | 改动的编号与状态（CH-xxx：问题 / 规则 / 状态） | `doc/PRD-询价报价系统.md` **§15** | TODO / README |
 | 暂时不做的事、新想法、待真机验证 | `doc/TODO.md` | PRD |
 | 部署、运行、账号、环境变量、离线打包、故障排查 | `doc/DEPLOY-DOCKER.md` | README |
+| **使用说明（面向使用者的操作手册：每页怎么用、常见问题）** | `doc/USER-GUIDE.md` | README / PRD |
 | 逐条验收证据（TC → 状态 + 代码行号） | `doc/ACCEPTANCE-MATRIX.md` | PRD（PRD 只写用例定义） |
 | 设计稿 | `doc/design/*.html` | — |
 | 演示数据生成 | `scripts/demo_data.py`（用法见 `DEPLOY-DOCKER.md` §2.3） | — |
