@@ -316,12 +316,6 @@ function fmtTime(value) {
   return String(value).replace('T', ' ').slice(0, 16)
 }
 
-/** 归档要求摘要（列窄，只显示"文件数 + 已归档数"，明细看悬停浮窗） */
-function archiveSummary(row) {
-  if (!row.archive_total) return '未定义'
-  return `${row.archive_total} 个文件 · 已归档 ${row.archive_done}`
-}
-
 onMounted(async () => {
   await loadProjects()
   await load()
@@ -442,26 +436,49 @@ onMounted(async () => {
           </template>
         </el-table-column>
 
-        <!-- 归档要求：短摘要 + 悬停浮窗看明细（列窄，避免挤占其它列） -->
-        <el-table-column label="归档要求" width="126">
+        <!-- 归档要求：列内直接列出文件名称；浮窗展开每个文件的具体要求与归档状态 -->
+        <el-table-column label="归档要求" width="210">
           <template #default="{ row }">
-            <el-tooltip placement="left" :show-after="120">
+            <el-tooltip placement="left" :show-after="120" popper-class="pm-file-tip-pop">
               <template #content>
                 <div class="file-tip">
+                  <div class="file-tip__title">
+                    归档要求（{{ row.archive_total }} 个文件{{ row.archive_done ? `，已归档 ${row.archive_done}` : '' }}）
+                  </div>
                   <div v-if="!row.archive_files.length" class="file-tip__empty">未定义需归档文件</div>
                   <div v-for="f in row.archive_files" :key="f.name" class="file-tip__row">
-                    <span :class="['file-tip__mark', f.archived ? 'is-done' : '']">
-                      {{ f.archived ? '✓' : '○' }}
-                    </span>
-                    <span class="file-tip__name">{{ f.name }}</span>
-                    <span v-if="f.note" class="file-tip__note">（{{ f.note }}）</span>
+                    <div class="file-tip__line">
+                      <span :class="['file-tip__mark', f.archived ? 'is-done' : '']">
+                        {{ f.archived ? '✓' : '○' }}
+                      </span>
+                      <span class="file-tip__name">{{ f.name }}</span>
+                      <span :class="['file-tip__state', f.archived ? 'is-done' : '']">
+                        {{ f.archived ? '已归档' : '未归档' }}
+                      </span>
+                    </div>
+                    <div class="file-tip__req">
+                      要求：{{ f.note || '无额外说明' }}
+                    </div>
+                    <div v-if="f.archived" class="file-tip__meta">
+                      {{ fmtTime(f.archived_at) }} · {{ f.archived_by || '—' }}
+                    </div>
                   </div>
-                  <div v-if="row.archived_at" class="file-tip__meta">
-                    归档完成：{{ fmtTime(row.archived_at) }} · {{ row.archived_by || '—' }}
+                  <div v-if="row.archived_at" class="file-tip__foot">
+                    单据归档完成：{{ fmtTime(row.archived_at) }} · {{ row.archived_by || '—' }}
                   </div>
                 </div>
               </template>
-              <span class="arch-summary">{{ archiveSummary(row) }}</span>
+              <div class="req-cell">
+                <div v-for="f in row.archive_files.slice(0, 3)" :key="f.name" class="req-item">
+                  <span :class="['req-mark', f.archived ? 'is-done' : '']">{{ f.archived ? '✓' : '○' }}</span>
+                  <span class="req-name" :title="f.name">{{ f.name }}</span>
+                  <span v-if="f.note" class="req-hint">要求</span>
+                </div>
+                <div v-if="row.archive_total > 3" class="req-more">
+                  +{{ row.archive_total - 3 }} 个文件（悬停看全部）
+                </div>
+                <span v-if="!row.archive_total" class="muted">未定义</span>
+              </div>
             </el-tooltip>
           </template>
         </el-table-column>
@@ -734,29 +751,101 @@ onMounted(async () => {
   color: v.$ok;
 }
 
-.arch-summary {
-  display: inline-block;
-  max-width: 100%;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  vertical-align: bottom;
-  font-size: v.$fs-sm;
-  color: v.$ink-500;
-  border-bottom: 1px dashed v.$line-strong;
+.req-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
   cursor: help;
 }
 
+.req-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+
+.req-mark {
+  flex: 0 0 auto;
+  font-size: 10px;
+  color: v.$ink-300;
+
+  &.is-done {
+    color: v.$ok;
+  }
+}
+
+.req-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: v.$fs-sm;
+  color: v.$ink-700;
+}
+
+.req-hint {
+  flex: 0 0 auto;
+  padding: 0 4px;
+  border-radius: 3px;
+  background: v.$brand-50;
+  color: v.$brand-800;
+  font-size: 10px;
+}
+
+.req-more {
+  font-size: v.$fs-xs;
+  color: v.$ink-400;
+}
+
 .file-tip {
-  max-width: 320px;
+  max-width: 360px;
   font-size: v.$fs-sm;
   line-height: 1.6;
 }
 
+.file-tip__title {
+  margin-bottom: 6px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+  font-weight: 600;
+}
+
 .file-tip__row {
+  margin-bottom: 6px;
+
+  &:last-of-type {
+    margin-bottom: 0;
+  }
+}
+
+.file-tip__line {
   display: flex;
   gap: 4px;
   align-items: baseline;
+}
+
+.file-tip__req {
+  margin-left: 14px;
+  color: rgba(255, 255, 255, 0.72);
+  font-size: v.$fs-xs;
+}
+
+.file-tip__state {
+  margin-left: auto;
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.6);
+
+  &.is-done {
+    color: #9be7b8;
+  }
+}
+
+.file-tip__foot {
+  margin-top: 6px;
+  padding-top: 4px;
+  border-top: 1px solid rgba(255, 255, 255, 0.2);
+  color: rgba(255, 255, 255, 0.7);
+  font-size: v.$fs-xs;
 }
 
 .file-tip__mark {
@@ -765,10 +854,6 @@ onMounted(async () => {
   &.is-done {
     color: #9be7b8;
   }
-}
-
-.file-tip__note {
-  color: rgba(255, 255, 255, 0.65);
 }
 
 .file-tip__meta {
