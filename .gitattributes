@@ -1,0 +1,13 @@
+# 行尾策略：
+# - .bat 必须是 CRLF 且使用 GBK 编码，否则 cmd.exe 解析报错（本项目踩过：LF 的 bat 会把命令行拆碎）
+# - shell 脚本用 LF，避免在 Linux 容器里出现 "bad interpreter"
+# - Office 文件按二进制处理，禁止任何换行转换
+*.bat   text eol=crlf
+*.cmd   text eol=crlf
+*.sh    text eol=lf
+*.xlsx  binary
+*.xls   binary
+*.png   binary
+*.jpg   binary
+*.ico   binary
+*.svg   text eol=lf

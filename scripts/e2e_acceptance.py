@@ -149,7 +149,7 @@ def main() -> int:
     args = ap.parse_args()
 
     print("=" * 58)
-    print(" 询价报价系统 · 端到端验收")
+    print(" 采购与项目管理平台 · 端到端验收")
     print(f" 目标: {args.base}")
     print("=" * 58)
 

@@ -43,3 +43,6 @@ Thumbs.db
 
 # 本地临时文件
 .ssh-public-key.txt
+
+# Office 打开文件时生成的临时锁文件（~$ 前缀）
+~$*

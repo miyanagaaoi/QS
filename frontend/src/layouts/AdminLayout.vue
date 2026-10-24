@@ -59,7 +59,7 @@ const collapsed = computed(() => {
 })
 
 const activeMenu = computed(() => resolveActiveMenu(route.path))
-const pageTitle = computed(() => route.meta?.title || '询价报价系统')
+const pageTitle = computed(() => route.meta?.title || '采购与项目管理平台')
 
 /** 面包屑：找到当前菜单所属分组 */
 const activeGroupTitle = computed(() => {
@@ -137,8 +137,8 @@ async function logout() {
     <!-- ===== 侧边导航（平板 / 桌面） ===== -->
     <aside v-else class="al-aside" :class="{ 'is-collapsed': collapsed }">
       <div class="al-brand">
-        <span class="al-brand__mark">询</span>
-        <span v-if="!collapsed" class="al-brand__name">询价报价系统</span>
+        <span class="al-brand__mark">采</span>
+        <span v-if="!collapsed" class="al-brand__name">采购与项目管理平台</span>
       </div>
 
       <el-menu
@@ -218,8 +218,8 @@ async function logout() {
       class="al-drawer"
     >
       <div class="al-brand">
-        <span class="al-brand__mark">询</span>
-        <span class="al-brand__name">询价报价系统</span>
+        <span class="al-brand__mark">采</span>
+        <span class="al-brand__name">采购与项目管理平台</span>
       </div>
       <el-menu
         class="al-menu"

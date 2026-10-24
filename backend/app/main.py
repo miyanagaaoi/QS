@@ -71,7 +71,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title=settings.app_name,
-    description="小型询价报价系统 API。需求见 doc/PRD-询价报价系统.md。",
+    description="小型采购与项目管理平台 API。需求见 doc/PRD-询价报价系统.md。",
     version="1.0.0",
     lifespan=lifespan,
     docs_url="/docs",

@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "type": "module",
-  "description": "询价报价系统前端（Vue 3 + Vite + Element Plus）",
+  "description": "采购与项目管理平台前端（Vue 3 + Vite + Element Plus）",
   "engines": {
     "node": ">=18.18.0"
   },

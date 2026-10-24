@@ -1,4 +1,4 @@
-# 询价报价系统 · Docker Compose 部署（PRD 第 9.4 节）
+# 采购与项目管理平台 · Docker Compose 部署（PRD 第 9.4 节）
 #
 # 启动：  docker compose up -d --build
 # 访问：  http://<服务器IP>/          （前端）

@@ -1,7 +1,7 @@
 {
-  "name": "询价报价系统",
-  "short_name": "询价报价",
-  "description": "内部采购询价、报价进度与供货商比价平台",
+  "name": "采购与项目管理平台",
+  "short_name": "采购与项目",
+  "description": "采购询价与工程项目管理：报价比价、项目进度看板",
   "lang": "zh-CN",
   "dir": "ltr",
   "start_url": "/",

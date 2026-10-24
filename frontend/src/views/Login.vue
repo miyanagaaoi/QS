@@ -98,10 +98,10 @@ async function onSubmit() {
   <div class="login-page">
     <section class="login-card">
       <header class="login-brand">
-        <span class="login-brand__mark">询</span>
+        <span class="login-brand__mark">采</span>
         <div class="login-brand__text">
-          <h1 class="login-brand__name">询价报价系统</h1>
-          <p class="login-brand__desc">内部采购比价与供货商报价平台</p>
+          <h1 class="login-brand__name">采购与项目管理平台</h1>
+          <p class="login-brand__desc">采购询价 · 工程项目管理（内网）</p>
         </div>
       </header>
 

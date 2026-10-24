@@ -1,8 +1,8 @@
-# 询价报价系统 PRD（产品需求文档）
+# 采购与项目管理平台 PRD（产品需求文档）
 
 | 项目 | 内容 |
 |---|---|
-| 文档名称 | 小型询价报价系统 产品需求文档 |
+| 文档名称 | 小型采购与项目管理平台 产品需求文档（**文件名沿用 `PRD-询价报价系统.md` 以保持历史链接有效**；系统现名见 `CH-003`） |
 | 版本 | v1.2 |
 | 状态 | 待评审 |
 | 编制依据 | `doc/prompt.txt`、`doc/示例.xls`（示例报价单模板）、v1.1 增补需求：**适配手机端 + 网页响应式布局**、v1.2 配套产出：**页面设计稿（`doc/design/`）** |
@@ -1314,6 +1314,7 @@ xunjia/
 |---|---|---|---|---|---|---|
 | CH-001 | 2026-10-24 | 工程 | 文档重复严重：运行方式、默认账号、已知限制各在 README / DELIVERY / DEPLOY-DOCKER / 验收矩阵 出现 2~3 份，接手时无法判断哪份为准；PRD 变更也没有编号，改动无状态可追踪 | ① 单一来源分工：README=现在、PRD=规则+CH、TODO=不做与想法、DEPLOY-DOCKER=部署、ACCEPTANCE-MATRIX=验收证据；② PRD 新增 §15，用 `CH-xxx` 记录"问题 / 规则 / 状态"并附变更流水；③ 新增 `AGENTS.md`（协作规矩与信息地图）与 `CLAUDE.md`（一行引用 `@AGENTS.md`）；④ 删除 `doc/DELIVERY.md`，内容拆入上述各处；⑤ 验收矩阵移出 §4.1/4.2 到 `doc/TODO.md`，并纠正 3 处已过期陈述 | 已实现 | `AGENTS.md`、`CLAUDE.md`、`doc/TODO.md`、`README.md`、本文件 §2.1 与 §15、`doc/ACCEPTANCE-MATRIX.md` |
 | CH-002 | 2026-10-24 | 变更 | 系统只有"报价"能力；甲方需按《工程项目全周期工期计划表》管理多个项目的阶段进度、工序、预算决算管理点与配套单据，目前全靠 Excel，无法汇总看板 | 新增**独立的「项目管理」模块**（与报价模块**不做任何数据关联**，为后期改造留空间）：① 项目主数据手工维护（名称/编号/当前阶段/开工日/计划竣工/项目经理/状态/备注）；② 每个项目一张**工期计划表**（8 阶段标准模板一键生成：决策立项 2→勘察设计 3→招标签约 1.5→施工准备 1→施工实施 14→调试试运行 1.5→竣工验收 1→缺陷保修 24 月，可手工改）；③ 三张**全局参考表**（施工工序 15 条 / 预算决算管理点 14 条 / 配套单据 12 类）内置默认值、可编辑；④ **首页看板**汇总：项目数 / 进行中 / 已竣工 / 超期 / 30 天内到期 / 阶段分布 / 各项目进度条与剩余天数；⑤ 进度按**日期**计算（已过天数 ÷ 开工至计划竣工跨度），当前阶段手工维护；⑥ 独立菜单「项目管理」，我方内部账号可用、供货商 403 | 已实现 | 规则见 §5.6（`FR-PM-01~12`）；`backend/app/api/pm.py`、`backend/app/models.py`（`Pm*` 五表）、`backend/app/pm_seed.py`、`frontend/src/views/pm/`（6 个文件）、`frontend/src/api/pm.js`、`frontend/src/router/`（菜单 + 5 条路由）、`backend/tests/test_pm.py`（10 例） |
+| CH-003 | 2026-10-24 | 变更 | 系统原名"询价报价系统"已不能覆盖新增的项目管理模块，名称与功能范围不符；且本机启动只有 bash 脚本 `scripts/dev-all.sh`，Windows 下需开 Git Bash 才能用，交付/演示不便 | ① **系统更名为「采购与项目管理平台」**：仅改**显示名**（前端标题/登录页/侧栏品牌与徽标首字"采"/manifest/后端 `config.app_name` 与 API 描述/README/设计稿/验收脚本），**技术标识保持不变**（包名与目录 `xunjia`、镜像 tag、环境变量前缀 `XUNJIA_`、数据库文件名 `xunjia.db`），避免破坏现有部署与数据；PRD 文件名沿用 `PRD-询价报价系统.md` 以保历史链接有效。② 新增 **Windows 一键启动** `start.bat`（自动检测/创建后端 venv、安装前端依赖、生成 `.env`、检测 8000/5173 占用、启动前后端并打开浏览器，支持 `--check` 只检查）与 `stop.bat`（按端口结束进程，支持 `--check` 干跑） | 已实现 | `start.bat`、`stop.bat`；`backend/app/config.py`、`backend/app/main.py`、`backend/app/__init__.py`、`frontend/index.html`、`frontend/public/manifest.json`、`frontend/package.json`、`frontend/src/layouts/AdminLayout.vue`、`frontend/src/views/Login.vue`、`frontend/src/router/index.js`、`scripts/e2e_acceptance.py`、`README.md`、`doc/DEPLOY-DOCKER.md`、`doc/design/*.html`(4) |
 
 ### 15.2 变更流水
 
@@ -1321,3 +1322,4 @@ xunjia/
 |---|---|---|---|
 | 2026-10-24 | CH-001 | 文档体系重构完成：5 个文件各管一件事，删除重复的 `DELIVERY.md`；验收矩阵 3 处过期结论已纠正（TC-61 微信下载提示已实现、自动截止已有后台扫描线程、导出已有行数上限） | 见 CH-001 落点 |
 | 2026-10-24 | CH-002 | 新增独立「项目管理」模块并自测通过：5 张表、15 个接口；新建项目自动生成 8 阶段（累计 0→2→5→6.5→7.5→21.5→23→24→48 月）；进度按日期计算；参考表 15/14/12 条已内置；`pytest` 67 passed（新增 10 例）、端到端仍 47/0/1 | 见 CH-002 落点 |
+| 2026-10-24 | CH-003 | 系统更名为「采购与项目管理平台」（仅显示名，技术标识不变）；新增 Windows 一键启动 `start.bat` 与停止脚本 `stop.bat`（均支持 --check）。实测：`start.bat` 10 秒内拉起 8000/5173，`stop.bat` 按端口正确结束；`pytest` 67 passed、端到端 47/0/1 | 见 CH-003 落点 |

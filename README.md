@@ -1,4 +1,4 @@
-# 询价报价系统
+# 采购与项目管理平台
 
 两个相互独立的模块：**采购报价**（我方建单邀请供货商报价 → 比价导出）与**项目管理**（多项目进度看板 + 工期计划表 + 预算决算参考表）。供货商可手机端报价。
 
@@ -19,12 +19,18 @@
 
 ## 怎么跑起来
 
+```bat
+:: Windows 本机：双击 start.bat（自动检查依赖 → 起后端 8000 + 前端 5173 → 开浏览器）
+::               停止用 stop.bat，或直接关闭弹出的两个窗口
+start.bat
+```
+
 ```bash
 # 生产/演示（Docker，双镜像或单镜像）
 docker compose up -d --build                              # → http://<IP>/
 docker compose -f docker-compose.single.yml up -d --build  # → http://<IP>:8000/
 
-# 本地开发
+# 本地开发（Linux/macOS 或 Git Bash）
 bash scripts/dev-all.sh          # 后端 8000 + 前端 5173
 
 # 生成一套可展示的实例数据（11 张单据、含报价与改价历史）
@@ -66,6 +72,7 @@ bash scripts/dev-all.sh          # 后端 8000 + 前端 5173
 | 改动编号与状态（`CH-xxx`）、变更流水 | PRD **§15** |
 | 暂时不做的事、新想法、待真机验证 | [doc/TODO.md](doc/TODO.md) |
 | 部署、运行、账号、环境变量、离线打包、排障 | [doc/DEPLOY-DOCKER.md](doc/DEPLOY-DOCKER.md) |
+| Windows 一键启动/停止脚本 | [doc/DEPLOY-DOCKER.md](doc/DEPLOY-DOCKER.md) §2.0（`start.bat` / `stop.bat`） |
 | 逐条验收证据（TC → 状态 + 代码行号） | [doc/ACCEPTANCE-MATRIX.md](doc/ACCEPTANCE-MATRIX.md) |
 | 页面设计稿（4 份自包含 HTML） | [doc/design/01-design-system.html](doc/design/01-design-system.html) |
 | 协作规矩、信息该写哪里、收尾要求 | [AGENTS.md](AGENTS.md)（`CLAUDE.md` 为一行引用） |

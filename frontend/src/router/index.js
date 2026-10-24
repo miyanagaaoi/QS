@@ -268,7 +268,7 @@ router.beforeEach(async (to) => {
 
 router.afterEach((to) => {
   const title = to.meta?.title
-  document.title = title ? `${title} · 询价报价系统` : '询价报价系统'
+  document.title = title ? `${title} · 采购与项目管理平台` : '采购与项目管理平台'
 })
 
 export default router

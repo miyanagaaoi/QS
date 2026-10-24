@@ -27,7 +27,7 @@ class Settings(BaseSettings):
     )
 
     # --- 基础 ---
-    app_name: str = "询价报价系统"
+    app_name: str = "采购与项目管理平台"
     debug: bool = False
 
     # --- 数据库 ---
