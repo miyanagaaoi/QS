@@ -226,6 +226,13 @@ function progressTone(row) {
   return 'brand'
 }
 
+/** 进度条悬停说明：明确"按当前阶段计算"的口径与阶段位置 */
+function progressHint(row) {
+  const stage = row.current_stage || '未设置'
+  const pos = row.stage_total ? `（${row.stage_index}/${row.stage_total}）` : ''
+  return `按当前阶段计算：${stage}${pos}`
+}
+
 function remainText(row) {
   if (row.remaining_days === null || row.remaining_days === undefined) return '未设计划竣工'
   if (row.status === 'done') return '已竣工'
@@ -345,12 +352,13 @@ onMounted(load)
         <el-table-column prop="plan_end_date" label="计划竣工" width="112">
           <template #default="{ row }">{{ row.plan_end_date || '—' }}</template>
         </el-table-column>
-        <el-table-column label="总体进度" min-width="150">
+        <el-table-column label="阶段进度" min-width="150">
           <template #default="{ row }">
             <div class="bar">
               <div
                 :class="['bar__fill', `bar__fill--${progressTone(row)}`]"
                 :style="{ width: `${row.progress}%` }"
+                :title="progressHint(row)"
               />
               <span class="bar__text">{{ row.progress }}%</span>
             </div>

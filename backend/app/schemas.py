@@ -628,6 +628,9 @@ class PmProjectOut(PmProjectIn):
     overdue: bool = False        # 已过计划竣工且未标记竣工
     due_soon: bool = False       # 30 天内到期且未竣工
     stage_count: int = 0
+    # 阶段进度（CH-012）：当前阶段是第几个 / 共几个阶段，用于标注"按阶段"口径
+    stage_index: int = 0
+    stage_total: int = 0
     # 施工工序完成情况（CH-005，看板展示「工序 x/y 完成」）
     process_done: int = 0
     process_total: int = 0

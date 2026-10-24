@@ -38,6 +38,7 @@ from ..exporter import (
 )
 from ..models import PmCostPoint, PmDocument, PmProcess, PmProject, User, app_now
 from .pm import _ensure_project_exists, _guard_template, _load_project
+from .pm import _progress as _pm_progress
 from .pm_documents import document_out
 
 router = APIRouter()
@@ -72,17 +73,9 @@ def _widths(ws, widths: tuple[int, ...]) -> None:
 
 
 def _progress(project: PmProject, today: date) -> tuple[int, int | None]:
-    """与列表接口保持一致：进度按日期跨度算，未设置日期时为 0。"""
-    if project.status == "done":
-        return 100, (project.plan_end_date - today).days if project.plan_end_date else None
-    start, end = project.start_date, project.plan_end_date
-    remaining = (end - today).days if end else None
-    if start and end and (end - start).days > 0:
-        elapsed = (today - start).days
-        pct = max(0, min(100, round(elapsed / (end - start).days * 100)))
-    else:
-        pct = 0
-    return pct, remaining
+    """复用列表接口的口径（CH-012：按当前阶段；日期只算剩余天数），避免两套算法漂移。"""
+    info = _pm_progress(project, today)
+    return int(info["progress"]), info["remaining_days"]  # type: ignore[arg-type]
 
 
 # --------------------------------------------------------------------------

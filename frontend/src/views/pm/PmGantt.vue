@@ -99,6 +99,8 @@ const rows = computed(() => {
       startText: p.start_date,
       endText: p.plan_end_date,
       stage: p.current_stage || '未设置',
+      stageIndex: p.stage_index ?? 0,
+      stageTotal: p.stage_total ?? 0,
       remaining: p.remaining_days,
       processDone: p.process_done ?? 0,
       processTotal: p.process_total ?? 0,
@@ -159,7 +161,11 @@ const rows = computed(() => {
                   <div class="gantt__tip">
                     <b>{{ row.name }}</b>
                     <div>开工 → 计划竣工：{{ row.startText }} → {{ row.endText }}</div>
-                    <div>当前阶段：{{ row.stage }} · 总体进度 {{ row.progress }}%</div>
+                    <div>
+                      当前阶段：{{ row.stage }}
+                      <template v-if="row.stageTotal">（{{ row.stageIndex }}/{{ row.stageTotal }}）</template>
+                    </div>
+                    <div>阶段进度：{{ row.progress }}%（按当前阶段计算）</div>
                     <div>工序完成：{{ row.processDone }}/{{ row.processTotal }}</div>
                     <div v-if="row.remaining !== null">
                       {{ row.remaining < 0 ? `已超期 ${Math.abs(row.remaining)} 天` : `剩余 ${row.remaining} 天` }}
@@ -188,7 +194,7 @@ const rows = computed(() => {
       <span class="gantt__legend-item"><i class="dot dot--ok" />已竣工</span>
       <span class="gantt__legend-item"><i class="dot dot--warn" />暂停</span>
       <span class="gantt__legend-item"><i class="dot dot--danger" />已超期</span>
-      <span class="gantt__legend-hint">横轴为日期，条内深色部分为该项目的总体进度；点击条形可进入工期计划表</span>
+      <span class="gantt__legend-hint">横轴为日期；条内深色部分为「按当前阶段」算出的整体进度；点击条形可进入工期计划表</span>
     </div>
   </div>
 </template>

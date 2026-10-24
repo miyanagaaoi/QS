@@ -118,17 +118,47 @@ def _fmt(value) -> str | None:
 # --------------------------------------------------------------------------
 # 项目派生指标
 # --------------------------------------------------------------------------
+def _stage_progress(project: PmProject) -> tuple[int, int, int]:
+    """按「当前阶段」计算整体进度（CH-012，取代原先按日期推算）。
+
+    口径：
+    - 分母 = 阶段表中序号 1~7 的工期合计（即"建设工期"，不含缺陷保修 24 个月质保期）；
+    - 分子 = 当前阶段**之前**各阶段（序号 1~7）的工期合计，当前阶段本身不计入
+      （系统不跟踪阶段内的百分比，所以进度落在阶段起点）；
+    - 已竣工 → 100%；当前阶段为空或匹配不到阶段表 → 0%。
+
+    为什么按时长加权而不是按阶段个数平均：8 个阶段工期差异极大
+    （施工实施 14 个月，招标签约 1.5 个月），按个数平均会让"刚进入施工实施"
+    直接显示 50%，与实际完成量偏差过大。
+
+    返回 (百分比, 当前阶段是第几个阶段(1-based, 未匹配为 0), 阶段总数)。
+    """
+    stages = sorted(project.stages, key=lambda s: (s.seq, s.id))
+    total_stages = len(stages)
+    if project.status == "done":
+        return 100, total_stages, total_stages
+    current = (project.current_stage or "").strip()
+    if not current or not stages:
+        return 0, 0, total_stages
+    index = next((i for i, s in enumerate(stages) if (s.name or "").strip() == current), None)
+    if index is None:
+        return 0, 0, total_stages
+
+    def months(stage) -> float:
+        return float(stage.months or 0)
+
+    current_seq = stages[index].seq
+    build_total = sum(months(s) for s in stages if s.seq <= 7)
+    build_done = sum(months(s) for s in stages if s.seq <= 7 and s.seq < current_seq)
+    pct = round(build_done / build_total * 100) if build_total else 0
+    return max(0, min(100, pct)), index + 1, total_stages
+
+
 def _progress(project: PmProject, today: date) -> dict[str, object]:
+    """派生指标：进度按阶段（见 `_stage_progress`），日期只用于剩余/超期/临期。"""
+    progress, stage_index, stage_total = _stage_progress(project)
     start = project.start_date
     end = project.plan_end_date
-    total_days = (end - start).days if (start and end) else None
-    if project.status == "done":
-        progress = 100
-    elif total_days and total_days > 0 and start:
-        elapsed_raw = (today - start).days
-        progress = max(0, min(100, round(elapsed_raw / total_days * 100)))
-    else:
-        progress = 0
     elapsed_days = (today - start).days if start else 0
     remaining_days = (end - today).days if end else None
     finished = project.status == "done"
@@ -138,6 +168,8 @@ def _progress(project: PmProject, today: date) -> dict[str, object]:
     )
     return {
         "progress": progress,
+        "stage_index": stage_index,
+        "stage_total": stage_total,
         "elapsed_days": elapsed_days,
         "remaining_days": remaining_days,
         "overdue": overdue,

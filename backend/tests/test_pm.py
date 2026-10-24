@@ -91,7 +91,8 @@ def test_create_project_generates_eight_stages_with_cumulative_months(client, ad
         assert abs(prev - cur) < 1e-6
 
 
-def test_progress_derived_from_dates(client, admin_token):
+def test_dates_drive_remaining_and_overdue(client, admin_token):
+    """CH-012 起：日期只决定剩余天数/超期/临期，不再决定进度百分比。"""
     today = date.today()
     project = _create(
         client,
@@ -101,7 +102,6 @@ def test_progress_derived_from_dates(client, admin_token):
         plan_end_date=(today + timedelta(days=50)).isoformat(),
         status="active",
     )
-    assert project["progress"] == 50, project["progress"]
     assert project["remaining_days"] == 50
     assert project["overdue"] is False
     assert project["due_soon"] is False
@@ -117,7 +117,6 @@ def test_progress_derived_from_dates(client, admin_token):
     )
     assert overdue["overdue"] is True
     assert overdue["remaining_days"] == -5
-    assert overdue["progress"] == 100  # 进度封顶 100
 
     # 30 天内到期
     soon = _create(
@@ -140,7 +139,7 @@ def test_progress_derived_from_dates(client, admin_token):
         status="done",
     )
     assert done["overdue"] is False
-    assert done["progress"] == 100
+    assert done["progress"] == 100  # 已竣工固定 100%
 
 
 def test_reject_end_before_start(client, admin_token):
@@ -706,3 +705,77 @@ def test_export_template_requires_admin(client, admin_token, buyer_token):
     denied = client.get("/api/pm/processes/export", headers=auth(buyer_token))
     assert denied.status_code == 403
     assert denied.json()["code"] == 40300
+
+def test_progress_follows_current_stage(client, admin_token):
+    """CH-012：整体进度 = 当前阶段之前各阶段工期 ÷ 建设工期（1~7 阶段合计 24 月）。
+
+    8 阶段标准工期：2 / 3 / 1.5 / 1 / 14 / 1.5 / 1 / 24（月）。
+    建设工期（1~7）= 24 月，缺陷保修 24 月不计入分母。
+    """
+    today = date.today()
+    cases = [
+        ("决策立项", 0, 1),      # 还没完成任何阶段
+        ("勘察设计", 8, 2),      # 已完成 决策立项 2 → 2/24 = 8%
+        ("招标签约", 21, 3),     # 2+3=5 → 21%
+        ("施工准备", 27, 4),     # 5+1.5=6.5 → 27%
+        ("施工实施", 31, 5),     # 6.5+1=7.5 → 31%
+        ("调试试运行", 90, 6),   # 7.5+14=21.5 → 90%
+        ("竣工验收", 96, 7),     # 21.5+1.5=23 → 96%
+        ("缺陷保修", 100, 8),    # 23+1=24 → 100%
+    ]
+    for stage, expected_pct, expected_index in cases:
+        project = _create(
+            client,
+            admin_token,
+            name=f"阶段进度-{stage}",
+            current_stage=stage,
+            start_date=(today - timedelta(days=10)).isoformat(),
+            plan_end_date=(today + timedelta(days=700)).isoformat(),
+            status="active",
+        )
+        assert project["progress"] == expected_pct, f"{stage}: {project['progress']} != {expected_pct}"
+        assert project["stage_index"] == expected_index
+        assert project["stage_total"] == 8
+
+
+def test_progress_zero_without_stage(client, admin_token):
+    """未设置当前阶段 → 0%（不再用日期跨度兜底）。"""
+    today = date.today()
+    project = _create(
+        client,
+        admin_token,
+        name="未设阶段项目",
+        current_stage=None,
+        start_date=(today - timedelta(days=180)).isoformat(),
+        plan_end_date=(today + timedelta(days=180)).isoformat(),
+        status="active",
+    )
+    assert project["progress"] == 0
+    assert project["stage_index"] == 0
+    assert project["remaining_days"] == 180
+
+
+def test_progress_ignores_dates(client, admin_token):
+    """同样的阶段、完全不同的日期 → 进度必须一致（证明不再按日期算）。"""
+    today = date.today()
+    early = _create(
+        client,
+        admin_token,
+        name="日期口径A",
+        current_stage="施工实施",
+        start_date=(today - timedelta(days=5)).isoformat(),
+        plan_end_date=(today + timedelta(days=800)).isoformat(),
+        status="active",
+    )
+    late = _create(
+        client,
+        admin_token,
+        name="日期口径B",
+        current_stage="施工实施",
+        start_date=(today - timedelta(days=700)).isoformat(),
+        plan_end_date=(today + timedelta(days=30)).isoformat(),
+        status="active",
+    )
+    assert early["progress"] == late["progress"] == 31
+    # 但剩余天数按日期，应不同
+    assert early["remaining_days"] != late["remaining_days"]
