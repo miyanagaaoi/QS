@@ -20,9 +20,11 @@ import {
   getPmBoard,
   updateProject,
 } from '@/api/pm'
+import { useBreakpoint } from '@/composables/useBreakpoint'
 import { useUserStore } from '@/stores/user'
 
 const router = useRouter()
+const { isMobile } = useBreakpoint()
 const userStore = useUserStore()
 
 const loading = ref(true)
@@ -178,6 +180,12 @@ async function remove(row) {
   }
 }
 
+/** 手机端「更多」下拉的命令分发 */
+function onRowCommand(command, row) {
+  if (command === 'edit') openEdit(row)
+  else if (command === 'remove') remove(row)
+}
+
 function openDetail(row) {
   router.push(`/pm/projects/${row.id}`)
 }
@@ -320,18 +328,33 @@ onMounted(load)
         <el-table-column prop="manager" label="项目经理" width="100">
           <template #default="{ row }">{{ row.manager || '—' }}</template>
         </el-table-column>
-        <el-table-column label="操作" width="170" fixed="right">
+        <!-- 操作列：桌面一行放三项（列宽 200 才放得下：76+34+34+间距）；
+             手机端受屏宽限制，收进「更多」下拉，避免按钮换行错位 -->
+        <el-table-column label="操作" :width="isMobile ? 148 : 200" fixed="right">
           <template #default="{ row }">
             <el-button link type="primary" @click="openDetail(row)">工期计划表</el-button>
-            <el-button link type="primary" @click="openEdit(row)">编辑</el-button>
-            <el-button
-              v-if="userStore.isAdmin"
-              link
-              type="danger"
-              @click="remove(row)"
-            >
-              删除
-            </el-button>
+            <template v-if="!isMobile">
+              <el-button link type="primary" @click="openEdit(row)">编辑</el-button>
+              <el-button
+                v-if="userStore.isAdmin"
+                link
+                type="danger"
+                @click="remove(row)"
+              >
+                删除
+              </el-button>
+            </template>
+            <el-dropdown v-else trigger="click" @command="(cmd) => onRowCommand(cmd, row)">
+              <el-button link type="primary">更多</el-button>
+              <template #dropdown>
+                <el-dropdown-menu>
+                  <el-dropdown-item command="edit">编辑</el-dropdown-item>
+                  <el-dropdown-item v-if="userStore.isAdmin" command="remove" divided>
+                    删除
+                  </el-dropdown-item>
+                </el-dropdown-menu>
+              </template>
+            </el-dropdown>
           </template>
         </el-table-column>
         <template #empty>

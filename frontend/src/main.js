@@ -15,6 +15,14 @@ import { useUserStore } from '@/stores/user'
 import './styles/index.scss'
 import './styles/element-overrides.scss'
 
+// —— 命令式组件的样式必须在全局引一次 ——
+// Element Plus 按需引入（unplugin）只会自动注入**模板里用到**的组件样式；
+// ElMessage / ElMessageBox 是通过函数调用的，不含在模板里，因此样式不会自动带上。
+// 缺了它们会表现为"确认框出现在左上角、宽高为 0"（本项目实测：.el-overlay 尺寸 0×0），
+// Toast 也会变成无样式文本。放在这里统一引入，新页面就不用再逐个记着引了。
+import 'element-plus/es/components/message/style/css'
+import 'element-plus/es/components/message-box/style/css'
+
 const app = createApp(App)
 
 app.use(createPinia())
