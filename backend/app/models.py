@@ -303,3 +303,132 @@ class AuditLog(Base):
     summary: Mapped[str | None] = mapped_column(String(500))
     client_ip: Mapped[str | None] = mapped_column(String(45))
     created_at: Mapped[datetime] = mapped_column(DateTime, default=app_now, nullable=False, index=True)
+
+
+# ===========================================================================
+# 项目管理模块（CH-002）
+#
+# 与报价模块**完全独立**：不建立任何外键关联，也不共享 project 文本字段，
+# 便于后期按需改造（例如把询价单挂到项目上）。数据以手工维护为主。
+# ===========================================================================
+
+#: 8 阶段标准工期模板（月）。来源：doc/工程项目全周期工期计划表 的「工期计划表」。
+#: 建设工期合计 = 序号 1~7 = 24 个月；缺陷保修（质保）24 个月单列，不计入建设工期。
+PM_STAGE_TEMPLATE: list[dict[str, object]] = [
+    {"seq": 1, "name": "决策立项", "group_name": "决策阶段", "months": 2,
+     "deliverables": "项目建议书、可研报告、立项批复/备案文件",
+     "pm_role": "尚未介入（甲方主导）", "owner": "甲方"},
+    {"seq": 2, "name": "勘察设计", "group_name": "准备阶段", "months": 3,
+     "deliverables": "地质勘察、初步设计、施工图、审图合格书",
+     "pm_role": "尚未介入（设计/甲方）", "owner": "设计单位"},
+    {"seq": 3, "name": "招标签约", "group_name": "准备阶段", "months": 1.5,
+     "deliverables": "招标文件、中标通知书、工程合同",
+     "pm_role": "参与投标与合同谈判", "owner": "甲方/总包"},
+    {"seq": 4, "name": "施工准备", "group_name": "准备阶段", "months": 1,
+     "deliverables": "施工许可证、施组报审、项目管理目标责任书",
+     "pm_role": "★ 正式进场履职", "owner": "施工方"},
+    {"seq": 5, "name": "施工实施", "group_name": "实施阶段", "months": 14,
+     "deliverables": "分部分项验收、隐蔽验收、变更签证记录",
+     "pm_role": "★ 全周期第一责任人", "owner": "施工方"},
+    {"seq": 6, "name": "调试试运行", "group_name": "实施阶段", "months": 1.5,
+     "deliverables": "单机调试、联动调试报告、试运行记录",
+     "pm_role": "★ 组织调试与整改", "owner": "施工方"},
+    {"seq": 7, "name": "竣工验收", "group_name": "验收交付", "months": 1,
+     "deliverables": "五方竣工验收报告、规划/消防/档案验收、备案表",
+     "pm_role": "★ 组织验收与移交", "owner": "五方/甲方"},
+    {"seq": 8, "name": "缺陷保修", "group_name": "验收交付", "months": 24,
+     "deliverables": "保修书、缺陷维修记录、质保金结算单",
+     "pm_role": "保修期内牵头处理", "owner": "施工方"},
+]
+
+
+class PmProject(Base):
+    """工程项目（手工维护；与 rfq.project 文本无关）。"""
+
+    __tablename__ = "pm_project"
+    __table_args__ = (Index("ix_pm_project_status", "status"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    name: Mapped[str] = mapped_column(String(100), nullable=False, index=True)
+    code: Mapped[str | None] = mapped_column(String(40))
+    current_stage: Mapped[str | None] = mapped_column(String(20))  # 手工维护的"实际阶段"
+    start_date: Mapped[date | None] = mapped_column(Date)
+    plan_end_date: Mapped[date | None] = mapped_column(Date)
+    total_months: Mapped[Decimal | None] = mapped_column(Numeric(5, 1))
+    manager: Mapped[str | None] = mapped_column(String(50))
+    # planning 未开工 / active 进行中 / done 已竣工 / paused 暂停
+    status: Mapped[str] = mapped_column(String(12), default="active", nullable=False)
+    remark: Mapped[str | None] = mapped_column(String(300))
+    created_by: Mapped[int | None] = mapped_column(ForeignKey("user.id"))
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=app_now, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, default=app_now, onupdate=app_now, nullable=False
+    )
+
+    stages: Mapped[list["PmStage"]] = relationship(
+        back_populates="project", cascade="all, delete-orphan", order_by="PmStage.seq"
+    )
+
+
+class PmStage(Base):
+    """某项目的工期计划表一行（默认由 PM_STAGE_TEMPLATE 生成，可手工改）。"""
+
+    __tablename__ = "pm_stage"
+    __table_args__ = (Index("ix_pm_stage_project", "project_id", "seq"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    project_id: Mapped[int] = mapped_column(ForeignKey("pm_project.id"), nullable=False)
+    seq: Mapped[int] = mapped_column(Integer, nullable=False)
+    name: Mapped[str] = mapped_column(String(30), nullable=False)
+    group_name: Mapped[str | None] = mapped_column(String(20))
+    months: Mapped[Decimal | None] = mapped_column(Numeric(4, 1))
+    start_month: Mapped[Decimal | None] = mapped_column(Numeric(6, 1))
+    end_month: Mapped[Decimal | None] = mapped_column(Numeric(6, 1))
+    deliverables: Mapped[str | None] = mapped_column(String(300))
+    pm_role: Mapped[str | None] = mapped_column(String(60))
+    owner: Mapped[str | None] = mapped_column(String(60))
+
+    project: Mapped[PmProject] = relationship(back_populates="stages")
+
+
+class PmProcess(Base):
+    """施工实施步骤明细（全局参考表，一套可编辑）。"""
+
+    __tablename__ = "pm_process"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    seq: Mapped[int] = mapped_column(Integer, nullable=False)
+    group_name: Mapped[str] = mapped_column(String(20), nullable=False)
+    name: Mapped[str] = mapped_column(String(60), nullable=False)
+    content: Mapped[str | None] = mapped_column(String(400))
+    qc_point: Mapped[str | None] = mapped_column(String(300))
+    predecessor: Mapped[str | None] = mapped_column(String(100))
+
+
+class PmCostPoint(Base):
+    """预算决算管理点（全局参考表，一套可编辑）。"""
+
+    __tablename__ = "pm_cost_point"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    seq: Mapped[int] = mapped_column(Integer, nullable=False)
+    phase: Mapped[str] = mapped_column(String(20), nullable=False)  # 预算编制/过程管控/竣工结算/财务决算/审计配合
+    point: Mapped[str] = mapped_column(String(60), nullable=False)
+    action: Mapped[str | None] = mapped_column(String(400))
+    risk: Mapped[str | None] = mapped_column(String(300))
+    owner: Mapped[str | None] = mapped_column(String(60))
+
+
+class PmDocument(Base):
+    """预算决算配套单据（全局参考表，一套可编辑）。"""
+
+    __tablename__ = "pm_document"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    seq: Mapped[int] = mapped_column(Integer, nullable=False)
+    cost_point: Mapped[str | None] = mapped_column(String(60))  # 对应管理点
+    name: Mapped[str] = mapped_column(String(60), nullable=False)
+    usage: Mapped[str | None] = mapped_column(String(200))
+    required_fields: Mapped[str | None] = mapped_column(String(400))
+    flow: Mapped[str | None] = mapped_column(String(200))
+    archive: Mapped[str | None] = mapped_column(String(200))

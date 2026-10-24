@@ -212,6 +212,10 @@ def ensure_seed_data() -> None:
         _ensure_dicts(db)
         if settings.seed_demo:
             _ensure_demo(db)
+        # 项目管理模块的三张参考表（施工工序/预算决算管理点/配套单据）默认值
+        from .pm_seed import ensure_pm_seed
+
+        ensure_pm_seed(db)
         db.commit()
     except Exception:
         db.rollback()

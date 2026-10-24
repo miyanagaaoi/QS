@@ -86,6 +86,45 @@ const routes = [
     ],
   },
 
+  // —— 项目管理（CH-002）：独立模块，与报价数据无关联 ——
+  {
+    path: '/pm',
+    component: AdminLayout,
+    meta: { roles: ['admin', 'buyer'] },
+    children: [
+      {
+        path: '',
+        name: 'pm-board',
+        component: () => import('@/views/pm/PmBoard.vue'),
+        meta: { title: '项目管理', roles: ['admin', 'buyer'] },
+      },
+      {
+        path: 'projects/:id',
+        name: 'pm-project-detail',
+        component: () => import('@/views/pm/PmProjectDetail.vue'),
+        meta: { title: '工期计划表', roles: ['admin', 'buyer'] },
+      },
+      {
+        path: 'processes',
+        name: 'pm-processes',
+        component: () => import('@/views/pm/PmProcesses.vue'),
+        meta: { title: '施工实施步骤明细', roles: ['admin', 'buyer'] },
+      },
+      {
+        path: 'cost-points',
+        name: 'pm-cost-points',
+        component: () => import('@/views/pm/PmCostPoints.vue'),
+        meta: { title: '预算决算管理点', roles: ['admin', 'buyer'] },
+      },
+      {
+        path: 'documents',
+        name: 'pm-documents',
+        component: () => import('@/views/pm/PmDocuments.vue'),
+        meta: { title: '预算决算配套单据', roles: ['admin', 'buyer'] },
+      },
+    ],
+  },
+
   // —— 我方侧：系统管理（仅管理员，采购员菜单也不显示）——
   {
     path: '/system',

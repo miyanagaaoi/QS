@@ -18,6 +18,19 @@ export const MENU_TREE = [
     ],
   },
   {
+    key: 'pm',
+    // 项目管理（CH-002）：与「采购管理」相互独立，不共享任何数据（后期再评估打通）
+    title: '项目管理',
+    icon: 'OfficeBuilding',
+    roles: ['admin', 'buyer'],
+    children: [
+      { key: 'pm-board', title: '进度看板', path: '/pm', icon: 'DataBoard' },
+      { key: 'pm-processes', title: '施工实施步骤', path: '/pm/processes', icon: 'List' },
+      { key: 'pm-cost-points', title: '预算决算管理点', path: '/pm/cost-points', icon: 'Finished' },
+      { key: 'pm-documents', title: '预算决算配套单据', path: '/pm/documents', icon: 'Document' },
+    ],
+  },
+  {
     key: 'system',
     title: '系统管理',
     icon: 'Setting',

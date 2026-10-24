@@ -581,3 +581,125 @@ class AuditLogItem(BaseModel):
 
 
 SupplierRfqDetail.model_rebuild()
+
+
+# --------------------------------------------------------------------------
+# 项目管理模块（CH-002）— 与报价模块无任何字段/外键关联
+# --------------------------------------------------------------------------
+PmProjectStatus = Literal["planning", "active", "done", "paused"]
+
+
+class PmStageIn(BaseModel):
+    seq: int = Field(ge=1, le=99)
+    name: str = Field(min_length=1, max_length=30)
+    group_name: str | None = Field(default=None, max_length=20)
+    months: str | None = None
+    start_month: str | None = None
+    end_month: str | None = None
+    deliverables: str | None = Field(default=None, max_length=300)
+    pm_role: str | None = Field(default=None, max_length=60)
+    owner: str | None = Field(default=None, max_length=60)
+
+
+class PmStageOut(PmStageIn):
+    id: int
+
+
+class PmProjectIn(BaseModel):
+    name: str = Field(min_length=1, max_length=100)
+    code: str | None = Field(default=None, max_length=40)
+    current_stage: str | None = Field(default=None, max_length=20)
+    start_date: date | None = None
+    plan_end_date: date | None = None
+    total_months: str | None = None
+    manager: str | None = Field(default=None, max_length=50)
+    status: PmProjectStatus = "active"
+    remark: str | None = Field(default=None, max_length=300)
+
+
+class PmProjectOut(PmProjectIn):
+    id: int
+    created_at: datetime
+    updated_at: datetime
+    # 看板派生指标（按日期计算，只读）
+    progress: int = 0            # 0~100，已过天数 / 计划跨度
+    elapsed_days: int = 0
+    remaining_days: int | None = None
+    overdue: bool = False        # 已过计划竣工且未标记竣工
+    due_soon: bool = False       # 30 天内到期且未竣工
+    stage_count: int = 0
+
+
+class PmProjectDetail(PmProjectOut):
+    stages: list[PmStageOut] = Field(default_factory=list)
+
+
+class PmBoardSummary(BaseModel):
+    total: int = 0
+    active: int = 0
+    planning: int = 0
+    done: int = 0
+    paused: int = 0
+    overdue: int = 0
+    due_soon: int = 0
+
+
+class PmStageDistribution(BaseModel):
+    stage: str
+    count: int
+
+
+class PmBoard(BaseModel):
+    summary: PmBoardSummary
+    stage_distribution: list[PmStageDistribution] = Field(default_factory=list)
+    projects: list[PmProjectOut] = Field(default_factory=list)
+    # 近期关键节点：计划竣工日最近的若干项目（含已超期）
+    upcoming: list[PmProjectOut] = Field(default_factory=list)
+
+
+class PmProcessIn(BaseModel):
+    seq: int | None = None
+    group_name: str | None = Field(default=None, max_length=20)
+    name: str | None = Field(default=None, max_length=60)
+    content: str | None = Field(default=None, max_length=400)
+    qc_point: str | None = Field(default=None, max_length=300)
+    predecessor: str | None = Field(default=None, max_length=100)
+
+
+class PmProcessOut(PmProcessIn):
+    id: int
+    seq: int
+    group_name: str
+    name: str
+
+
+class PmCostPointIn(BaseModel):
+    seq: int | None = None
+    phase: str | None = Field(default=None, max_length=20)
+    point: str | None = Field(default=None, max_length=60)
+    action: str | None = Field(default=None, max_length=400)
+    risk: str | None = Field(default=None, max_length=300)
+    owner: str | None = Field(default=None, max_length=60)
+
+
+class PmCostPointOut(PmCostPointIn):
+    id: int
+    seq: int
+    phase: str
+    point: str
+
+
+class PmDocumentIn(BaseModel):
+    seq: int | None = None
+    cost_point: str | None = Field(default=None, max_length=60)
+    name: str | None = Field(default=None, max_length=60)
+    usage: str | None = Field(default=None, max_length=200)
+    required_fields: str | None = Field(default=None, max_length=400)
+    flow: str | None = Field(default=None, max_length=200)
+    archive: str | None = Field(default=None, max_length=200)
+
+
+class PmDocumentOut(PmDocumentIn):
+    id: int
+    seq: int
+    name: str
