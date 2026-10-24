@@ -125,6 +125,13 @@ async function batchArchive(archived) {
 // —— 追加归档文件（列表页行内）——
 const addFileDialog = reactive({ visible: false, row: null, saving: false, name: '', note: '' })
 
+/** 从"归档勾选"弹窗里继续追加文件 */
+function openAddFileFromArchive() {
+  const row = archiveDialog.row
+  archiveDialog.visible = false
+  if (row) openAddFile(row)
+}
+
 function openAddFile(row) {
   addFileDialog.row = row
   addFileDialog.name = ''
@@ -295,9 +302,9 @@ function fmtTime(value) {
   return String(value).replace('T', ' ').slice(0, 16)
 }
 
-/** 归档要求摘要（列表页一行文字，悬停看明细） */
+/** 归档要求摘要（列窄，只显示"文件数 + 已归档数"，明细看悬停浮窗） */
 function archiveSummary(row) {
-  if (!row.archive_total) return '未定义需归档文件'
+  if (!row.archive_total) return '未定义'
   return `${row.archive_total} 个文件 · 已归档 ${row.archive_done}`
 }
 
@@ -368,6 +375,10 @@ onMounted(async () => {
           <template #default="{ row }">{{ row.cost_point || '—' }}</template>
         </el-table-column>
 
+        <el-table-column prop="required_fields" label="核心栏目" min-width="190" show-overflow-tooltip>
+          <template #default="{ row }">{{ row.required_fields || '—' }}</template>
+        </el-table-column>
+
         <!-- 审批流转：显示当前节点，点击选择 -->
         <el-table-column label="审批节点" width="196">
           <template #default="{ row }">
@@ -402,25 +413,22 @@ onMounted(async () => {
           </template>
         </el-table-column>
 
-        <!-- 归档：进度 + 逐项勾选 + 追加文件 -->
-        <el-table-column label="归档" width="152">
+        <!-- 归档：只显示进度与一个入口，勾选/追加文件都在弹窗里做，避免列内拥挤 -->
+        <el-table-column label="归档" width="104" align="center">
           <template #default="{ row }">
             <div class="archive-cell">
               <span :class="['arch-badge', row.archived ? 'is-done' : row.archive_done ? 'is-part' : '']">
                 {{ row.archive_done }}/{{ row.archive_total }}
               </span>
-              <el-button v-if="!isTemplate && row.archive_total" link type="primary" @click="openArchive(row)">
-                勾选
-              </el-button>
-              <el-button v-if="!isTemplate" link type="primary" @click="openAddFile(row)">
-                + 文件
+              <el-button v-if="!isTemplate" link type="primary" @click="openArchive(row)">
+                归档
               </el-button>
             </div>
           </template>
         </el-table-column>
 
-        <!-- 归档要求：一行摘要 + 悬停浮窗 -->
-        <el-table-column label="归档要求" min-width="190">
+        <!-- 归档要求：短摘要 + 悬停浮窗看明细（列窄，避免挤占其它列） -->
+        <el-table-column label="归档要求" width="126">
           <template #default="{ row }">
             <el-tooltip placement="left" :show-after="120">
               <template #content>
@@ -441,10 +449,6 @@ onMounted(async () => {
               <span class="arch-summary">{{ archiveSummary(row) }}</span>
             </el-tooltip>
           </template>
-        </el-table-column>
-
-        <el-table-column prop="required_fields" label="核心栏目" min-width="190" show-overflow-tooltip>
-          <template #default="{ row }">{{ row.required_fields || '—' }}</template>
         </el-table-column>
 
         <el-table-column label="操作" width="150" fixed="right">
@@ -480,11 +484,12 @@ onMounted(async () => {
           </span>
         </div>
         <div v-if="!(archiveDialog.row?.archive_files || []).length" class="empty-text">
-          该单据还没有定义归档文件，可用「+ 文件」追加
+          该单据还没有定义归档文件，点下方「+ 追加文件」
         </div>
       </div>
       <template #footer>
-        <el-button @click="archiveDialog.visible = false">关闭</el-button>
+        <el-button @click="openAddFileFromArchive">+ 追加文件</el-button>
+        <el-button type="primary" @click="archiveDialog.visible = false">关闭</el-button>
       </template>
     </el-dialog>
 
@@ -715,6 +720,12 @@ onMounted(async () => {
 }
 
 .arch-summary {
+  display: inline-block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  vertical-align: bottom;
   font-size: v.$fs-sm;
   color: v.$ink-500;
   border-bottom: 1px dashed v.$line-strong;
