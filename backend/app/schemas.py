@@ -693,9 +693,16 @@ class PmProcessStatusIn(BaseModel):
     remark: str | None = Field(default=None, max_length=200)
 
 
+class PmProgressIn(BaseModel):
+    """进行中工序的进度更新（CH-006 / FR-PM-27）：只填一句当前进度说明。"""
+
+    remark: str = Field(min_length=1, max_length=200)
+
+
 class PmProcessLogOut(BaseModel):
     id: int
     process_id: int
+    kind: str = "status"   # status=状态变更；progress=进度更新
     from_status: str | None = None
     to_status: str
     remark: str | None = None

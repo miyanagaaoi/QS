@@ -425,8 +425,9 @@ class PmProcess(Base):
 class PmProcessLog(Base):
     """工序状态变更历史（CH-005）—— 追加写入，永不修改或删除。
 
-    每次状态变更记一条（原状态 → 新状态 + 备注 + 操作人），
-    对应 PRD `FR-PM-22`：用于追溯"谁在什么时候把哪道工序推进到哪一步"。
+    每次状态变更记一条（原状态 → 新状态 + 备注 + 操作人），对应 PRD `FR-PM-22`；
+    CH-006 起"进行中"的工序还可以提交**进度更新**（kind='progress'，状态不变），
+    用于追溯"谁在什么时候报告了什么进展"。
     """
 
     __tablename__ = "pm_process_log"
@@ -435,6 +436,8 @@ class PmProcessLog(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     process_id: Mapped[int] = mapped_column(ForeignKey("pm_process.id"), nullable=False)
     project_id: Mapped[int | None] = mapped_column(ForeignKey("pm_project.id"))
+    # kind: status=状态变更（from→to 不同）；progress=进行中的进度更新（from==to）
+    kind: Mapped[str] = mapped_column(String(12), default="status", nullable=False)
     from_status: Mapped[str | None] = mapped_column(String(12))
     to_status: Mapped[str] = mapped_column(String(12), nullable=False)
     remark: Mapped[str | None] = mapped_column(String(200))

@@ -69,6 +69,7 @@ from ..schemas import (
     PmProcessLogOut,
     PmProcessOut,
     PmProcessStatusIn,
+    PmProgressIn,
     PmProjectDetail,
     PmProjectIn,
     PmProjectOut,
@@ -833,6 +834,7 @@ def change_process_status(
         PmProcessLog(
             process_id=row.id,
             project_id=row.project_id,
+            kind="status",
             from_status=from_status,
             to_status=payload.status,
             remark=_str_or_none(payload.remark),
@@ -877,6 +879,7 @@ def list_process_logs(
             PmProcessLogOut(
                 id=r.id,
                 process_id=r.process_id,
+                kind=r.kind,
                 from_status=r.from_status,
                 to_status=r.to_status,
                 remark=r.remark,
@@ -886,6 +889,63 @@ def list_process_logs(
             for r in rows
         ]
     )
+
+
+@router.post(
+    "/processes/{item_id}/progress",
+    response_model=Envelope[PmProcessOut],
+    summary="更新进行中工序的当前进度（写一条进度历史）",
+)
+def update_process_progress(
+    item_id: int,
+    payload: PmProgressIn,
+    request: Request,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_internal),
+):
+    """CH-006：只有"进行中"的工序才允许提交进度更新。
+
+    - 不改状态、不改实际开始/完成时间，只把最新进度写回工序备注；
+    - 追加一条 `kind='progress'` 的历史（from_status == to_status == doing），
+      这样"谁在什么时候报告了什么进展"可完整追溯。
+    """
+    row = db.get(PmProcess, item_id)
+    if row is None:
+        raise _err(404, 40400, "工序不存在")
+    if row.project_id is None:
+        raise _err(409, 40900, "标准模板不跟踪进度，请在具体项目下操作")
+    if row.status != "doing":
+        raise _err(409, 40900, "只有「进行中」的工序可以更新进度")
+
+    remark = payload.remark.strip()
+    if not remark:
+        raise _err(400, 40001, "请填写本次进度说明")
+
+    row.progress_remark = remark
+    db.add(
+        PmProcessLog(
+            process_id=row.id,
+            project_id=row.project_id,
+            kind="progress",
+            from_status=row.status,
+            to_status=row.status,
+            remark=remark,
+            operator_id=user.id,
+            operator_name=user.real_name or user.username,
+        )
+    )
+    write_audit(
+        db,
+        request=request,
+        user=user,
+        action="pm.process.progress",
+        target_type="pm_process",
+        target_id=row.id,
+        summary=f"更新工序进度 {row.name}（项目 {row.project_id}）：{remark[:60]}",
+    )
+    db.commit()
+    db.refresh(row)
+    return Envelope(data=_process_out(row))
 
 
 # ---------- 预算决算管理点 ----------

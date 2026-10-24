@@ -103,6 +103,7 @@ def _migrate_add_columns() -> None:
             ("finished_at", "DATETIME"),
             ("progress_remark", "VARCHAR(200)"),
         ],
+        "pm_process_log": [("kind", "VARCHAR(12) NOT NULL DEFAULT 'status'")],
         "pm_cost_point": [("project_id", "INTEGER REFERENCES pm_project(id)")],
         "pm_document": [("project_id", "INTEGER REFERENCES pm_project(id)")],
     }

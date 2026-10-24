@@ -25,6 +25,7 @@ import {
   listPmProcessLogs,
   resetProjectCopies,
   updatePmProcess,
+  updatePmProcessProgress,
 } from '@/api/pm'
 import { usePmScope } from '@/composables/usePmScope'
 import PmScopeBar from './PmScopeBar.vue'
@@ -128,6 +129,32 @@ async function changeStatus(row, action) {
     ElMessage.success(`已改为「${label}」`)
   } catch {
     // 后端原文提示（如"状态未发生变化"）
+  }
+}
+
+// —— 进度更新（CH-006：仅"进行中"可用）——
+const progressDialog = reactive({ visible: false, saving: false, row: null, remark: '' })
+
+function openProgress(row) {
+  progressDialog.row = row
+  progressDialog.remark = row.progress_remark || ''
+  progressDialog.visible = true
+}
+
+async function submitProgress() {
+  const remark = progressDialog.remark.trim()
+  if (!remark) return ElMessage.warning('请填写本次进度说明')
+  progressDialog.saving = true
+  try {
+    const updated = await updatePmProcessProgress(progressDialog.row.id, remark)
+    const index = rows.value.findIndex((r) => r.id === progressDialog.row.id)
+    if (index >= 0) rows.value[index] = updated
+    progressDialog.visible = false
+    ElMessage.success('进度已更新')
+  } catch {
+    /* 已提示 */
+  } finally {
+    progressDialog.saving = false
   }
 }
 
@@ -311,10 +338,18 @@ onMounted(async () => {
         <el-table-column label="负责人" width="110">
           <template #default="{ row }">{{ row.assignee || '—' }}</template>
         </el-table-column>
-        <el-table-column label="当前状态" width="248">
+        <el-table-column label="当前状态" width="300">
           <template #default="{ row }">
             <div class="status-cell">
               <span :class="['badge', `badge--${statusOf(row).tone}`]">{{ statusOf(row).label }}</span>
+              <el-button
+                v-if="row.status === 'doing'"
+                link
+                type="primary"
+                @click="openProgress(row)"
+              >
+                更新
+              </el-button>
               <el-button
                 v-for="action in actionsOf(row)"
                 :key="action.to"
@@ -350,6 +385,30 @@ onMounted(async () => {
         </template>
       </el-table>
     </section>
+
+    <!-- 更新当前进度（CH-006） -->
+    <el-dialog v-model="progressDialog.visible" title="更新当前进度" width="520px" :close-on-click-modal="false">
+      <p class="progress-tip">
+        「{{ progressDialog.row?.name || '' }}」当前状态：进行中。这里只记录进度说明，
+        <b>不会改变工序状态</b>；每次更新都会写入变更历史。
+      </p>
+      <el-form label-position="top">
+        <el-form-item label="本次进度说明" required>
+          <el-input
+            v-model="progressDialog.remark"
+            type="textarea"
+            :rows="3"
+            maxlength="200"
+            show-word-limit
+            placeholder="例如：土方开挖完成 40%，边坡支护同步进行，预计 3 天后完成"
+          />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="progressDialog.visible = false">取消</el-button>
+        <el-button type="primary" :loading="progressDialog.saving" @click="submitProgress">提交更新</el-button>
+      </template>
+    </el-dialog>
 
     <!-- 编辑 / 新增 -->
     <el-dialog
@@ -401,7 +460,12 @@ onMounted(async () => {
             :timestamp="fmtTime(log.created_at)"
             placement="top"
           >
-            <div class="log-line">
+            <!-- 进度更新（kind=progress）：状态不变，只展示进度说明 -->
+            <div v-if="log.kind === 'progress'" class="log-line">
+              <span class="badge badge--brand">进度更新</span>
+              <span class="badge badge--brand">{{ STATUS[log.to_status]?.label || log.to_status }}</span>
+            </div>
+            <div v-else class="log-line">
               <span class="badge badge--muted">{{ STATUS[log.from_status]?.label || '—' }}</span>
               <span class="log-arrow">→</span>
               <span :class="['badge', `badge--${STATUS[log.to_status]?.tone || 'muted'}`]">
@@ -579,6 +643,19 @@ onMounted(async () => {
   margin-top: 4px;
   font-size: v.$fs-sm;
   color: v.$ink-700;
+}
+
+.progress-tip {
+  margin: 0 0 v.$sp-3;
+  padding: v.$sp-2 v.$sp-3;
+  background: v.$surface-sunken;
+  border-radius: v.$r-sm;
+  font-size: v.$fs-sm;
+  color: v.$ink-500;
+
+  b {
+    color: v.$ink-900;
+  }
 }
 
 .empty-text {

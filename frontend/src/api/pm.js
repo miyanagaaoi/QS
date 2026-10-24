@@ -78,6 +78,11 @@ export function changePmProcessStatus(id, status, remark) {
   return post(`/pm/processes/${id}/status`, { status, remark: remark || null })
 }
 
+/** 更新"进行中"工序的当前进度（只写进度历史，不改状态；CH-006） */
+export function updatePmProcessProgress(id, remark) {
+  return post(`/pm/processes/${id}/progress`, { remark })
+}
+
 /** 工序状态变更历史（按时间倒序） */
 export function listPmProcessLogs(id) {
   return get(`/pm/processes/${id}/logs`)

@@ -421,3 +421,72 @@ def test_delete_project_cleans_copies_and_logs(client, admin_token):
     assert client.get(f"/api/pm/processes?project_id={pid}", headers=auth(admin_token)).status_code == 404
     # 模板仍然是 15 条
     assert len(client.get("/api/pm/processes", headers=auth(admin_token)).json()["data"]) == 15
+
+
+def test_progress_update_only_when_doing(client, admin_token, buyer_token):
+    project = _create(client, admin_token, name="进度更新项目")
+    row = _copies_of(client, project["id"], buyer_token)["processes"][0]
+
+    # 未开始 → 拒绝
+    rejected = client.post(
+        f"/api/pm/processes/{row['id']}/progress",
+        json={"remark": "还没开始就报进度"},
+        headers=auth(buyer_token),
+    )
+    assert rejected.status_code == 409
+    assert rejected.json()["code"] == 40900
+
+    # 转为进行中后可以更新
+    client.post(
+        f"/api/pm/processes/{row['id']}/status",
+        json={"status": "doing"},
+        headers=auth(buyer_token),
+    )
+    updated = client.post(
+        f"/api/pm/processes/{row['id']}/progress",
+        json={"remark": "土方开挖完成 40%"},
+        headers=auth(buyer_token),
+    )
+    assert updated.status_code == 200, updated.text
+    body = updated.json()["data"]
+    assert body["status"] == "doing"           # 状态不变
+    assert body["progress_remark"] == "土方开挖完成 40%"
+
+    # 纯空格备注 → 400
+    blank = client.post(
+        f"/api/pm/processes/{row['id']}/progress",
+        json={"remark": "   "},
+        headers=auth(buyer_token),
+    )
+    assert blank.status_code == 400
+    assert blank.json()["code"] == 40001
+
+
+def test_progress_update_writes_history_entry(client, admin_token):
+    project = _create(client, admin_token, name="进度历史项目")
+    row = _copies_of(client, project["id"], admin_token)["processes"][0]
+    client.post(
+        f"/api/pm/processes/{row['id']}/status", json={"status": "doing"}, headers=auth(admin_token)
+    )
+    client.post(
+        f"/api/pm/processes/{row['id']}/progress",
+        json={"remark": "第一段管道焊接完成"},
+        headers=auth(admin_token),
+    )
+    logs = client.get(f"/api/pm/processes/{row['id']}/logs", headers=auth(admin_token)).json()["data"]
+    assert len(logs) == 2
+    assert logs[0]["kind"] == "progress"
+    assert logs[0]["from_status"] == "doing" and logs[0]["to_status"] == "doing"
+    assert logs[0]["remark"] == "第一段管道焊接完成"
+    assert logs[1]["kind"] == "status"
+
+
+def test_template_rejects_progress_update(client, admin_token):
+    template = client.get("/api/pm/processes", headers=auth(admin_token)).json()["data"][0]
+    resp = client.post(
+        f"/api/pm/processes/{template['id']}/progress",
+        json={"remark": "模板不跟踪进度"},
+        headers=auth(admin_token),
+    )
+    assert resp.status_code == 409
+    assert resp.json()["code"] == 40900
