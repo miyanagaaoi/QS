@@ -590,12 +590,15 @@ PmProjectStatus = Literal["planning", "active", "done", "paused"]
 
 
 class PmStageIn(BaseModel):
+    """工期计划表一行（CH-013：工期按**天**，并记录计划起止日期）。"""
+
     seq: int = Field(ge=1, le=99)
     name: str = Field(min_length=1, max_length=30)
     group_name: str | None = Field(default=None, max_length=20)
-    months: str | None = None
-    start_month: str | None = None
-    end_month: str | None = None
+    # 工期（天）：前端按日期差自动算，后端也会以日期为准重算
+    days: int | None = Field(default=None, ge=0, le=36500)
+    plan_start_date: date | None = None
+    plan_end_date: date | None = None
     deliverables: str | None = Field(default=None, max_length=300)
     pm_role: str | None = Field(default=None, max_length=60)
     owner: str | None = Field(default=None, max_length=60)
@@ -611,7 +614,7 @@ class PmProjectIn(BaseModel):
     current_stage: str | None = Field(default=None, max_length=20)
     start_date: date | None = None
     plan_end_date: date | None = None
-    total_months: str | None = None
+    total_days: int | None = Field(default=None, ge=0, le=36500)  # 总工期（天）
     manager: str | None = Field(default=None, max_length=50)
     status: PmProjectStatus = "active"
     remark: str | None = Field(default=None, max_length=300)

@@ -117,7 +117,7 @@ function emptyForm() {
     current_stage: '',
     start_date: '',
     plan_end_date: '',
-    total_months: '',
+    total_days: '',
     manager: '',
     status: 'active',
     remark: '',
@@ -139,7 +139,7 @@ function openEdit(row) {
     current_stage: row.current_stage || '',
     start_date: row.start_date || '',
     plan_end_date: row.plan_end_date || '',
-    total_months: row.total_months || '',
+    total_days: row.total_days ?? '',
     manager: row.manager || '',
     status: row.status || 'active',
     remark: row.remark || '',
@@ -161,6 +161,11 @@ async function submit() {
   try {
     const payload = { ...f }
     delete payload.id
+    // 总工期(天) 允许留空；填了就转成数字（后端是 int 字段）
+    payload.total_days =
+      payload.total_days === '' || payload.total_days === null
+        ? null
+        : Number(payload.total_days)
     if (!payload.start_date) payload.start_date = null
     if (!payload.plan_end_date) payload.plan_end_date = null
     if (dialog.mode === 'create') {
@@ -212,11 +217,10 @@ function openById(id) {
 }
 
 // —— 展示辅助 ——
-function fmtMonths(v) {
+/** 总工期（天）展示；空值显示破折号 */
+function fmtDays(v) {
   if (v === null || v === undefined || v === '') return '—'
-  const n = Number(v)
-  if (Number.isNaN(n)) return String(v)
-  return Number.isInteger(n) ? String(n) : n.toFixed(1)
+  return String(v)
 }
 
 function progressTone(row) {
@@ -343,8 +347,8 @@ onMounted(load)
             </span>
           </template>
         </el-table-column>
-        <el-table-column label="工期(月)" width="90" align="right">
-          <template #default="{ row }">{{ fmtMonths(row.total_months) }}</template>
+        <el-table-column label="工期(天)" width="90" align="right">
+          <template #default="{ row }">{{ fmtDays(row.total_days) }}</template>
         </el-table-column>
         <el-table-column prop="start_date" label="开工日期" width="112">
           <template #default="{ row }">{{ row.start_date || '—' }}</template>
@@ -445,8 +449,8 @@ onMounted(load)
         <el-form-item label="计划竣工">
           <el-date-picker v-model="dialog.form.plan_end_date" type="date" value-format="YYYY-MM-DD" placeholder="选择日期" style="width: 100%" />
         </el-form-item>
-        <el-form-item label="总工期(月)">
-          <el-input v-model="dialog.form.total_months" placeholder="选填，如 24" />
+        <el-form-item label="总工期(天)">
+          <el-input v-model="dialog.form.total_days" placeholder="选填；留空则按阶段表自动合计（如 720）" />
         </el-form-item>
         <el-form-item label="项目经理">
           <el-input v-model="dialog.form.manager" maxlength="50" />

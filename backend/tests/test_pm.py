@@ -71,24 +71,34 @@ def test_reference_item_editable(client, admin_token):
 # ---------------------------------------------------------------------------
 # 项目 + 8 阶段
 # ---------------------------------------------------------------------------
-def test_create_project_generates_eight_stages_with_cumulative_months(client, admin_token):
-    project = _create(client, admin_token, name="阶段模板验证项目")
+def test_create_project_generates_eight_stages_in_days(client, admin_token):
+    """CH-013：8 阶段按**天**生成，且计划起止日期首尾相接。"""
+    today = date.today()
+    project = _create(
+        client,
+        admin_token,
+        name="阶段模板验证项目",
+        start_date=today.isoformat(),
+        plan_end_date=(today + timedelta(days=900)).isoformat(),
+    )
     stages = project["stages"]
     assert len(stages) == 8
     assert [s["name"] for s in stages][0] == "决策立项"
     assert [s["name"] for s in stages][-1] == "缺陷保修"
 
-    # 累计月数：0→2→5→6.5→7.5→21.5→23→24→48（与 doc 工作簿示例一致）
-    starts = [float(s["start_month"]) for s in stages]
-    ends = [float(s["end_month"]) for s in stages]
-    assert starts[0] == 0 and ends[0] == 2
-    assert starts[1] == 2 and ends[1] == 5
-    assert abs(ends[3] - 7.5) < 1e-6
-    assert abs(ends[6] - 24) < 1e-6      # 建设工期合计（不含质保）
-    assert abs(ends[7] - 48) < 1e-6      # 含 24 个月质保
-    # 相邻行首尾相接
-    for prev, cur in zip(ends, starts[1:]):
-        assert abs(prev - cur) < 1e-6
+    # 模板天数：60/90/45/30/420/45/30/720（30 天/月换算）
+    assert [s["days"] for s in stages] == [60, 90, 45, 30, 420, 45, 30, 720]
+    assert sum(s["days"] for s in stages if s["seq"] <= 7) == 720  # 建设工期
+    assert project["total_days"] == 720
+
+    # 日期首尾相接 + 日期差 = 天数
+    for index, stage in enumerate(stages):
+        assert stage["plan_start_date"] and stage["plan_end_date"]
+        start = date.fromisoformat(stage["plan_start_date"])
+        end = date.fromisoformat(stage["plan_end_date"])
+        assert (end - start).days == stage["days"]
+        if index:
+            assert stage["plan_start_date"] == stages[index - 1]["plan_end_date"]
 
 
 def test_dates_drive_remaining_and_overdue(client, admin_token):
@@ -165,18 +175,22 @@ def test_save_stages_and_reset_template(client, admin_token):
     project = _create(client, admin_token, name="阶段保存项目")
     pid = project["id"]
     stages = project["stages"]
-    stages[4]["months"] = "16"
-    stages[4]["deliverables"] = "延长 2 个月"
+    # 只改工期天数、把结束日期按新天数顺延（等价于页面上的"改工期"）
+    target = stages[4]
+    start = date.fromisoformat(target["plan_start_date"])
+    target["days"] = 480
+    target["plan_end_date"] = (start + timedelta(days=480)).isoformat()
+    target["deliverables"] = "延长 60 天"
     resp = client.put(f"/api/pm/projects/{pid}/stages", json=stages, headers=auth(admin_token))
     assert resp.status_code == 200, resp.text
     saved = resp.json()["data"]["stages"]
-    assert saved[4]["months"] == "16.0" or float(saved[4]["months"]) == 16
-    assert saved[4]["deliverables"] == "延长 2 个月"
+    assert saved[4]["days"] == 480
+    assert saved[4]["deliverables"] == "延长 60 天"
 
     reset = client.post(f"/api/pm/projects/{pid}/stages/reset", headers=auth(admin_token))
     assert reset.status_code == 200, reset.text
     back = reset.json()["data"]["stages"]
-    assert float(back[4]["months"]) == 14
+    assert back[4]["days"] == 420
     assert back[4]["deliverables"].startswith("分部分项验收")
 
 
@@ -667,7 +681,7 @@ def test_export_board_xlsx(client, admin_token):
     sheet = _load_xlsx(client.get("/api/pm/board/export", headers=auth(admin_token)))
     headers = [c.value for c in sheet[1]]
     assert headers[:6] == ["序号", "项目名称", "项目编号", "当前阶段", "状态", "项目经理"]
-    assert "总体进度%" in headers and "工序完成" in headers
+    assert "阶段进度%" in headers and "工序完成" in headers
     assert sheet.max_row >= 2  # 至少表头 + 1 个项目
 
 
@@ -677,7 +691,7 @@ def test_export_project_stages_xlsx(client, admin_token):
         client.get(f"/api/pm/projects/{project['id']}/stages/export", headers=auth(admin_token))
     )
     headers = [c.value for c in sheet[1]]
-    assert headers[1] == "阶段名称" and "工期(月)" in headers
+    assert headers[1] == "阶段名称" and "工期(天)" in headers
     # 8 个阶段 + 合计行 + 空行 + 项目信息行
     assert sheet.max_row >= 10
 
@@ -779,3 +793,33 @@ def test_progress_ignores_dates(client, admin_token):
     assert early["progress"] == late["progress"] == 31
     # 但剩余天数按日期，应不同
     assert early["remaining_days"] != late["remaining_days"]
+
+
+def test_stage_days_recalc_total_days(client, admin_token):
+    """CH-013：改阶段工期后，项目「总工期(天)」要跟着重算（建设工期 = 1~7 合计）。"""
+    today = date.today()
+    project = _create(
+        client,
+        admin_token,
+        name="总工期重算项目",
+        start_date=today.isoformat(),
+        plan_end_date=(today + timedelta(days=900)).isoformat(),
+    )
+    assert project["total_days"] == 720
+
+    stages = project["stages"]
+    target = stages[4]  # 施工实施，模板 420 天
+    start = date.fromisoformat(target["plan_start_date"])
+    target["days"] = 510
+    target["plan_end_date"] = (start + timedelta(days=510)).isoformat()
+    resp = client.put(
+        f"/api/pm/projects/{project['id']}/stages", json=stages, headers=auth(admin_token)
+    )
+    assert resp.status_code == 200, resp.text
+    body = resp.json()["data"]
+    assert body["stages"][4]["days"] == 510
+    assert body["total_days"] == 810  # 720 - 420 + 510
+
+    # 重置回模板 → 回到 720
+    reset = client.post(f"/api/pm/projects/{project['id']}/stages/reset", headers=auth(admin_token))
+    assert reset.json()["data"]["total_days"] == 720

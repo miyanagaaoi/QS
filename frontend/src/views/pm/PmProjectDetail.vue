@@ -6,7 +6,7 @@
  * 这里支持逐行改工期/交付物/责任人，也可加行、删行、上移下移、一键重置模板。
  *
  * 口径（与 doc/工程项目全周期工期计划表 一致）：
- *  - 单位月；开始月/结束月为"自立项决策起算的累计月数"，由工期自动累加；
+ *  - CH-013 起单位统一为**天**：每行直接选计划开始/结束日期，工期 = 日期差（自动算）；
  *  - 建设工期合计 = 序号 1~7（不含缺陷保修/质保期）；项目经理在场期 = 序号 4~7。
  *
  * 接口：GET/PUT /api/pm/projects/{id}、PUT .../stages、POST .../stages/reset
@@ -55,20 +55,29 @@ const info = reactive({
   manager: '',
 })
 
-const totalMonths = computed(() =>
-  stages.value.reduce((sum, row) => sum + (Number(row.months) || 0), 0),
-)
+/** 单行工期（天）：有起止日期就用日期差，否则用 days 字段 */
+function rowDays(row) {
+  if (row.plan_start_date && row.plan_end_date) {
+    const start = new Date(`${row.plan_start_date}T00:00:00Z`)
+    const end = new Date(`${row.plan_end_date}T00:00:00Z`)
+    const diff = Math.round((end - start) / 86400000)
+    return diff > 0 ? diff : 0
+  }
+  return Number(row.days) || 0
+}
+
+const totalDays = computed(() => stages.value.reduce((sum, row) => sum + rowDays(row), 0))
 /** 建设工期合计：序号 1~7（不含质保） */
-const buildMonths = computed(() =>
+const buildDays = computed(() =>
   stages.value
     .filter((row) => Number(row.seq) <= 7)
-    .reduce((sum, row) => sum + (Number(row.months) || 0), 0),
+    .reduce((sum, row) => sum + rowDays(row), 0),
 )
 /** 项目经理在场期：序号 4~7（施工准备 → 竣工验收） */
-const pmMonths = computed(() =>
+const pmDays = computed(() =>
   stages.value
     .filter((row) => Number(row.seq) >= 4 && Number(row.seq) <= 7)
-    .reduce((sum, row) => sum + (Number(row.months) || 0), 0),
+    .reduce((sum, row) => sum + rowDays(row), 0),
 )
 
 function fmt(n) {
@@ -94,14 +103,48 @@ async function load() {
   }
 }
 
-/** 重新累加"开始月/结束月"（改工期后调用，保证累计口径一致） */
-function recalcMonths() {
-  let cursor = 0
+/** 把日期串（YYYY-MM-DD）加 n 天 */
+function addDays(dateText, n) {
+  if (!dateText) return ''
+  const base = new Date(`${dateText}T00:00:00Z`)
+  base.setUTCDate(base.getUTCDate() + Number(n || 0))
+  return base.toISOString().slice(0, 10)
+}
+
+/** 改「工期(天)」：以本行开始日为准，重算本行结束日，并顺延后续各阶段（保持首尾相接） */
+function recalcFromDays(index) {
+  const rows = stages.value
+  let cursor = rows[index]?.plan_start_date || ''
+  for (let i = index; i < rows.length; i += 1) {
+    const row = rows[i]
+    if (cursor) {
+      row.plan_start_date = cursor
+      row.plan_end_date = addDays(cursor, rowDays(row))
+      cursor = row.plan_end_date
+    } else {
+      row.plan_end_date = ''
+    }
+    row.days = rowDays(row)
+  }
+  recalcTotals()
+}
+
+/** 改「计划开始」：重算本行结束日并顺延后续 */
+function recalcFromStart(index) {
+  recalcFromDays(index)
+}
+
+/** 改「计划结束」：只重算本行工期 */
+function recalcFromEnd(index) {
+  const row = stages.value[index]
+  row.days = rowDays(row)
+  recalcTotals()
+}
+
+/** 把各行天数写回 days 字段（保存前调用） */
+function recalcTotals() {
   stages.value.forEach((row) => {
-    const months = Number(row.months) || 0
-    row.start_month = String(cursor)
-    row.end_month = String(cursor + months)
-    cursor += months
+    row.days = rowDays(row)
   })
 }
 
@@ -112,14 +155,14 @@ function addRow() {
     seq: nextSeq,
     name: '',
     group_name: '',
-    months: '',
-    start_month: '',
-    end_month: '',
+    days: '',
+    plan_start_date: '',
+    plan_end_date: '',
     deliverables: '',
     pm_role: '',
     owner: '',
   })
-  recalcMonths()
+  recalcTotals()
 }
 
 async function removeRow(index) {
@@ -131,7 +174,7 @@ async function removeRow(index) {
     })
     stages.value.splice(index, 1)
     stages.value.forEach((row, i) => { row.seq = i + 1 })
-    recalcMonths()
+    recalcTotals()
   } catch {
     /* 取消 */
   }
@@ -143,7 +186,7 @@ function move(index, delta) {
   const list = stages.value
   ;[list[index], list[target]] = [list[target], list[index]]
   list.forEach((row, i) => { row.seq = i + 1 })
-  recalcMonths()
+  recalcTotals()
 }
 
 async function saveInfo() {
@@ -159,7 +202,7 @@ async function saveInfo() {
       current_stage: info.current_stage || null,
       start_date: info.start_date || null,
       plan_end_date: info.plan_end_date || null,
-      total_months: project.value.total_months,
+      total_days: totalDays.value || null,
       manager: info.manager || null,
       status: info.status,
       remark: project.value.remark,
@@ -185,14 +228,14 @@ async function saveStages() {
   }
   saving.value = true
   try {
-    recalcMonths()
+    recalcTotals()
     const payload = stages.value.map((row) => ({
       seq: Number(row.seq),
       name: String(row.name).trim(),
       group_name: row.group_name || null,
-      months: row.months === '' ? null : String(row.months),
-      start_month: row.start_month === '' ? null : String(row.start_month),
-      end_month: row.end_month === '' ? null : String(row.end_month),
+      days: rowDays(row),
+      plan_start_date: row.plan_start_date || null,
+      plan_end_date: row.plan_end_date || null,
       deliverables: row.deliverables || null,
       pm_role: row.pm_role || null,
       owner: row.owner || null,
@@ -248,8 +291,8 @@ onMounted(load)
           <span v-if="project?.code" class="code">{{ project.code }}</span>
         </h2>
         <p class="page-head__sub">
-          工期计划表 · 建设工期 {{ fmt(buildMonths) }} 月 ·
-          项目经理在场 {{ fmt(pmMonths) }} 月 · 含质保合计 {{ fmt(totalMonths) }} 月
+          工期计划表 · 建设工期 {{ fmt(buildDays) }} 天 ·
+          项目经理在场 {{ fmt(pmDays) }} 天 · 含质保合计 {{ fmt(totalDays) }} 天
         </p>
       </div>
       <div class="page-head__actions">
@@ -306,7 +349,7 @@ onMounted(load)
     <section class="card">
       <div class="card__head">
         <h3 class="card__title">工期计划表</h3>
-        <span class="card__hint">单位：月；开始/结束月为自决策立项起算的累计月数（改工期后自动重算）</span>
+        <span class="card__hint">单位：天；直接选计划开始/结束日期，工期按日期差自动计算，改一天后续阶段自动顺延</span>
       </div>
 
       <el-table :data="stages" border size="small" style="width: 100%">
@@ -317,17 +360,42 @@ onMounted(load)
         <el-table-column label="阶段组" width="110">
           <template #default="{ row }"><el-input v-model="row.group_name" size="small" maxlength="20" /></template>
         </el-table-column>
-        <el-table-column label="工期(月)" width="88">
-          <template #default="{ row }">
-            <el-input v-model="row.months" size="small" @change="recalcMonths" />
-          </template>
-        </el-table-column>
-        <el-table-column label="开始月" width="80">
-          <template #default="{ row }"><span class="num">{{ row.start_month ?? '—' }}</span></template>
-        </el-table-column>
-        <el-table-column label="结束月" width="80">
-          <template #default="{ row }"><span class="num">{{ row.end_month ?? '—' }}</span></template>
-        </el-table-column>
+        <el-table-column label="工期(天)" width="90">
+            <template #default="{ row, $index }">
+              <el-input
+                v-model="row.days"
+                size="small"
+                placeholder="天"
+                @change="() => recalcFromDays($index)"
+              />
+            </template>
+          </el-table-column>
+          <el-table-column label="计划开始" width="150">
+            <template #default="{ row, $index }">
+              <el-date-picker
+                v-model="row.plan_start_date"
+                type="date"
+                size="small"
+                value-format="YYYY-MM-DD"
+                placeholder="选日期"
+                style="width: 100%"
+                @change="() => recalcFromStart($index)"
+              />
+            </template>
+          </el-table-column>
+          <el-table-column label="计划结束" width="150">
+            <template #default="{ row, $index }">
+              <el-date-picker
+                v-model="row.plan_end_date"
+                type="date"
+                size="small"
+                value-format="YYYY-MM-DD"
+                placeholder="选日期"
+                style="width: 100%"
+                @change="() => recalcFromEnd($index)"
+              />
+            </template>
+          </el-table-column>
         <el-table-column label="关键交付物 / 里程碑" min-width="200">
           <template #default="{ row }"><el-input v-model="row.deliverables" size="small" maxlength="300" /></template>
         </el-table-column>
@@ -351,9 +419,9 @@ onMounted(load)
       <div class="table-foot">
         <el-button @click="addRow">+ 添加阶段</el-button>
         <span class="table-foot__sum">
-          建设工期（1~7）<b>{{ fmt(buildMonths) }}</b> 月 ·
-          项目经理在场（4~7）<b>{{ fmt(pmMonths) }}</b> 月 ·
-          全部合计（含质保）<b>{{ fmt(totalMonths) }}</b> 月
+          建设工期（1~7）<b>{{ fmt(buildDays) }}</b> 天 ·
+          项目经理在场（4~7）<b>{{ fmt(pmDays) }}</b> 天 ·
+          全部合计（含质保）<b>{{ fmt(totalDays) }}</b> 天
         </span>
       </div>
     </section>

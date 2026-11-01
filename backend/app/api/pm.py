@@ -36,7 +36,7 @@
 """
 from __future__ import annotations
 
-from datetime import date
+from datetime import date, timedelta
 from decimal import Decimal, InvalidOperation
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
@@ -104,6 +104,13 @@ def _dec(value: str | None, field: str) -> Decimal | None:
         raise _err(400, 40001, f"{field}：请输入数字") from exc
 
 
+def _row_days(row) -> int | None:
+    """一行阶段的工期（天）：只要起止日期都有就以日期差为准，否则用前端传的 days。"""
+    if row.plan_start_date and row.plan_end_date:
+        return max(0, (row.plan_end_date - row.plan_start_date).days)
+    return row.days
+
+
 def _str_or_none(value) -> str | None:
     if value is None:
         return None
@@ -121,14 +128,14 @@ def _fmt(value) -> str | None:
 def _stage_progress(project: PmProject) -> tuple[int, int, int]:
     """按「当前阶段」计算整体进度（CH-012，取代原先按日期推算）。
 
-    口径：
-    - 分母 = 阶段表中序号 1~7 的工期合计（即"建设工期"，不含缺陷保修 24 个月质保期）；
+    口径（CH-013 起按**天**）：
+    - 分母 = 阶段表中序号 1~7 的工期合计（即"建设工期"，不含缺陷保修 720 天质保期）；
     - 分子 = 当前阶段**之前**各阶段（序号 1~7）的工期合计，当前阶段本身不计入
       （系统不跟踪阶段内的百分比，所以进度落在阶段起点）；
     - 已竣工 → 100%；当前阶段为空或匹配不到阶段表 → 0%。
 
-    为什么按时长加权而不是按阶段个数平均：8 个阶段工期差异极大
-    （施工实施 14 个月，招标签约 1.5 个月），按个数平均会让"刚进入施工实施"
+    为什么按天加权而不是按阶段个数平均：8 个阶段工期差异极大
+    （施工实施 420 天，招标签约 45 天），按个数平均会让"刚进入施工实施"
     直接显示 50%，与实际完成量偏差过大。
 
     返回 (百分比, 当前阶段是第几个阶段(1-based, 未匹配为 0), 阶段总数)。
@@ -144,12 +151,15 @@ def _stage_progress(project: PmProject) -> tuple[int, int, int]:
     if index is None:
         return 0, 0, total_stages
 
-    def months(stage) -> float:
-        return float(stage.months or 0)
+    def weight(stage) -> float:
+        """阶段权重（天，CH-013）：优先用计划起止日期差，其次用 days 字段。"""
+        if stage.plan_start_date and stage.plan_end_date:
+            return float(max(0, (stage.plan_end_date - stage.plan_start_date).days))
+        return float(stage.days or 0)
 
     current_seq = stages[index].seq
-    build_total = sum(months(s) for s in stages if s.seq <= 7)
-    build_done = sum(months(s) for s in stages if s.seq <= 7 and s.seq < current_seq)
+    build_total = sum(weight(s) for s in stages if s.seq <= 7)
+    build_done = sum(weight(s) for s in stages if s.seq <= 7 and s.seq < current_seq)
     pct = round(build_done / build_total * 100) if build_total else 0
     return max(0, min(100, pct)), index + 1, total_stages
 
@@ -190,7 +200,7 @@ def _project_out(
         current_stage=project.current_stage,
         start_date=project.start_date,
         plan_end_date=project.plan_end_date,
-        total_months=_fmt(project.total_months),
+        total_days=project.total_days,
         manager=project.manager,
         status=project.status,  # type: ignore[arg-type]
         remark=project.remark,
@@ -226,9 +236,9 @@ def _stage_out(stage: PmStage) -> PmStageOut:
         seq=stage.seq,
         name=stage.name,
         group_name=stage.group_name,
-        months=_fmt(stage.months),
-        start_month=_fmt(stage.start_month),
-        end_month=_fmt(stage.end_month),
+        days=stage.days,
+        plan_start_date=stage.plan_start_date,
+        plan_end_date=stage.plan_end_date,
         deliverables=stage.deliverables,
         pm_role=stage.pm_role,
         owner=stage.owner,
@@ -358,25 +368,38 @@ def ensure_all_project_copies(db: Session) -> int:
 
 
 def _apply_stage_template(db: Session, project: PmProject) -> None:
+    """按 8 阶段标准模板重建阶段表（CH-013：工期按天，并落到实际日期）。
+
+    以项目「开工日期」为起点顺序累加每阶段天数，得到每个阶段的计划起止日期
+    （`结束日 = 开始日 + 天数`，下一阶段从上一阶段结束日接着开始，不留缝）。
+    项目未填开工日期时只写天数、日期留空，之后可在页面上按实际日期选。
+    """
     project.stages.clear()
-    cursor = Decimal("0")
+    cursor: date | None = project.start_date
+    build_days = 0
     for item in PM_STAGE_TEMPLATE:
-        months = Decimal(str(item["months"]))
+        days = int(item["days"])  # type: ignore[arg-type]
+        begin = cursor
+        finish = (begin + timedelta(days=days)) if begin else None
+        if finish is not None:
+            cursor = finish
+        if int(item["seq"]) <= 7:  # type: ignore[arg-type]
+            build_days += days
         db.add(
             PmStage(
                 project_id=project.id,
                 seq=int(item["seq"]),  # type: ignore[arg-type]
                 name=str(item["name"]),
                 group_name=str(item["group_name"]),
-                months=months,
-                start_month=cursor,
-                end_month=cursor + months,
+                days=days,
+                plan_start_date=begin,
+                plan_end_date=finish,
                 deliverables=str(item["deliverables"]),
                 pm_role=str(item["pm_role"]),
                 owner=str(item["owner"]),
             )
         )
-        cursor += months
+    project.total_days = build_days
 
 
 # --------------------------------------------------------------------------
@@ -458,7 +481,7 @@ def create_project(
         current_stage=_str_or_none(payload.current_stage),
         start_date=payload.start_date,
         plan_end_date=payload.plan_end_date,
-        total_months=_dec(payload.total_months, "总工期(月)"),
+        total_days=payload.total_days,
         manager=_str_or_none(payload.manager),
         status=payload.status,
         remark=_str_or_none(payload.remark),
@@ -510,7 +533,8 @@ def update_project(
     project.current_stage = _str_or_none(payload.current_stage)
     project.start_date = payload.start_date
     project.plan_end_date = payload.plan_end_date
-    project.total_months = _dec(payload.total_months, "总工期(月)")
+    if payload.total_days is not None:
+        project.total_days = payload.total_days
     project.manager = _str_or_none(payload.manager)
     project.status = payload.status
     project.remark = _str_or_none(payload.remark)
@@ -591,15 +615,29 @@ def save_stages(
                 seq=row.seq,
                 name=row.name.strip(),
                 group_name=_str_or_none(row.group_name),
-                months=_dec(row.months, f"第{row.seq}行工期"),
-                start_month=_dec(row.start_month, f"第{row.seq}行开始月"),
-                end_month=_dec(row.end_month, f"第{row.seq}行结束月"),
+                days=_row_days(row),
+                plan_start_date=row.plan_start_date,
+                plan_end_date=row.plan_end_date,
                 deliverables=_str_or_none(row.deliverables),
                 pm_role=_str_or_none(row.pm_role),
                 owner=_str_or_none(row.owner),
             )
         )
     project.updated_at = app_now()
+    # CH-013：阶段工期改完后重算项目总工期（建设工期 = 序号 1~7 的天数合计）
+    db.flush()
+    # 注意：这里必须重新查库 —— 上面的行是用 project_id 直接 add 的，
+    # `project.stages` 关系里还是空的（clear 之后没 append），取它会算成 0。
+    fresh_stages = db.scalars(
+        select(PmStage).where(PmStage.project_id == project.id)
+    ).all()
+    project.total_days = sum(
+        max(0, (st.plan_end_date - st.plan_start_date).days)
+        if (st.plan_start_date and st.plan_end_date)
+        else int(st.days or 0)
+        for st in fresh_stages
+        if st.seq <= 7
+    )
     write_audit(
         db,
         request=request,

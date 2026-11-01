@@ -95,6 +95,12 @@ def _migrate_add_columns() -> None:
     from sqlalchemy import text
 
     additions: dict[str, list[tuple[str, str]]] = {
+        "pm_project": [("total_days", "INTEGER")],
+        "pm_stage": [
+            ("days", "INTEGER"),
+            ("plan_start_date", "DATE"),
+            ("plan_end_date", "DATE"),
+        ],
         "pm_process": [
             ("project_id", "INTEGER REFERENCES pm_project(id)"),
             ("status", "VARCHAR(12) NOT NULL DEFAULT 'todo'"),
@@ -126,6 +132,7 @@ def _migrate_add_columns() -> None:
                     continue
                 conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {name} {ddl}"))
     _migrate_document_json()
+    _migrate_stage_days()
 
 
 def _migrate_document_json() -> None:
@@ -194,3 +201,69 @@ def _migrate_document_json() -> None:
                     sql_text("UPDATE pm_document SET current_node=:cur WHERE id=:id"),
                     {"cur": nodes[0], "id": row_id},
                 )
+
+
+def _migrate_stage_days() -> None:
+    """CH-013：工期由「月」改为「天」，并按新模板重建各项目的阶段表。
+
+    - 触发条件：`pm_project.total_days IS NULL`（只跑一次，幂等）
+    - 做法：删除该项目原有阶段行，按 8 阶段模板的天数 + 项目开工日期，
+      顺序推算每阶段的计划起止日期（`days = 结束日 - 开始日`，首尾相接不留缝）；
+    - 项目开工日期为空时只写天数、日期留空，之后在页面上选日期即可；
+    - `total_days` 记建设工期（阶段 1~7 合计）。
+    用户 2026-11-01 明确选择"按新模板重建阶段表"，因此这里会覆盖手工改过的工期。
+    """
+    from datetime import date, timedelta
+
+    from sqlalchemy import text as sql_text
+
+    from .models import PM_STAGE_TEMPLATE
+
+    with engine.begin() as conn:
+        cols = {row[1] for row in conn.execute(sql_text("PRAGMA table_info(pm_project)")).fetchall()}
+        if "total_days" not in cols:
+            return
+        pending = conn.execute(
+            sql_text("SELECT id, start_date FROM pm_project WHERE total_days IS NULL")
+        ).fetchall()
+        for project_id, start_text in pending:
+            base: date | None = None
+            if start_text:
+                base = date.fromisoformat(str(start_text)[:10])
+            conn.execute(
+                sql_text("DELETE FROM pm_stage WHERE project_id=:pid"), {"pid": project_id}
+            )
+            cursor = base
+            build_days = 0
+            for item in PM_STAGE_TEMPLATE:
+                days = int(item["days"])  # type: ignore[arg-type]
+                start = cursor
+                end = (start + timedelta(days=days)) if start else None
+                if end is not None:
+                    cursor = end
+                if int(item["seq"]) <= 7:  # type: ignore[arg-type]
+                    build_days += days
+                conn.execute(
+                    sql_text(
+                        "INSERT INTO pm_stage (project_id, seq, name, group_name, days, "
+                        "plan_start_date, plan_end_date, deliverables, pm_role, owner) "
+                        "VALUES (:pid, :seq, :name, :group_name, :days, :start, :end, "
+                        ":deliverables, :pm_role, :owner)"
+                    ),
+                    {
+                        "pid": project_id,
+                        "seq": int(item["seq"]),  # type: ignore[arg-type]
+                        "name": item["name"],
+                        "group_name": item["group_name"],
+                        "days": days,
+                        "start": start.isoformat() if start else None,
+                        "end": end.isoformat() if end else None,
+                        "deliverables": item["deliverables"],
+                        "pm_role": item["pm_role"],
+                        "owner": item["owner"],
+                    },
+                )
+            conn.execute(
+                sql_text("UPDATE pm_project SET total_days=:d WHERE id=:pid"),
+                {"d": build_days, "pid": project_id},
+            )

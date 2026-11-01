@@ -67,6 +67,15 @@ def _xlsx(wb: Workbook, filename: str, ascii_name: str) -> Response:
     )
 
 
+def _stage_days(stage) -> int:
+    """一个阶段的工期（天）：优先日期差，其次 days 字段（CH-013）。"""
+    if stage is None:
+        return 0
+    if stage.plan_start_date and stage.plan_end_date:
+        return max(0, (stage.plan_end_date - stage.plan_start_date).days)
+    return int(stage.days or 0)
+
+
 def _widths(ws, widths: tuple[int, ...]) -> None:
     for col, width in enumerate(widths, start=1):
         ws.column_dimensions[get_column_letter(col)].width = width
@@ -107,7 +116,7 @@ def export_board(
     ws.title = "多项目进度"
     headers = [
         "序号", "项目名称", "项目编号", "当前阶段", "状态", "项目经理",
-        "开工日期", "计划竣工", "总工期(月)", "总体进度%", "剩余天数",
+        "开工日期", "计划竣工", "总工期(天)", "阶段进度%", "剩余天数",
         "工序完成", "备注",
     ]
     _write_header(ws, headers)
@@ -125,7 +134,7 @@ def export_board(
                 project.manager or "",
                 project.start_date.isoformat() if project.start_date else "",
                 project.plan_end_date.isoformat() if project.plan_end_date else "",
-                float(project.total_months) if project.total_months is not None else "",
+                project.total_days if project.total_days is not None else "",
                 pct,
                 remaining if remaining is not None else "",
                 f"{done}/{total}",
@@ -157,44 +166,42 @@ def export_project_stages(
     ws = wb.active
     ws.title = "工期计划表"
     headers = [
-        "序号", "阶段名称", "阶段组", "工期(月)", "开始月", "结束月",
+        "序号", "阶段名称", "阶段组", "工期(天)", "计划开始", "计划结束",
         "关键交付物 / 里程碑", "项目经理角色", "责任主体",
     ]
     _write_header(ws, headers)
-    build_total = 0.0
-    pm_total = 0.0
+    build_total = 0
+    pm_total = 0
     for stage in stages:
-        months = float(stage.months) if stage.months is not None else 0.0
+        days = _stage_days(stage)
         if stage.seq <= 7:
-            build_total += months
+            build_total += days
         if 4 <= stage.seq <= 7:
-            pm_total += months
+            pm_total += days
         _write_row(
             ws,
             [
                 stage.seq,
                 stage.name,
                 stage.group_name or "",
-                months,
-                float(stage.start_month) if stage.start_month is not None else "",
-                float(stage.end_month) if stage.end_month is not None else "",
+                days,
+                stage.plan_start_date.isoformat() if stage.plan_start_date else "",
+                stage.plan_end_date.isoformat() if stage.plan_end_date else "",
                 stage.deliverables or "",
                 stage.pm_role or "",
                 stage.owner or "",
             ],
         )
-    all_total = build_total + float(
-        next((s.months for s in stages if s.seq == 8), 0) or 0
-    )
+    all_total = build_total + _stage_days(next((s for s in stages if s.seq == 8), None))
     total_row = _write_row(
         ws,
-        ["合计", f"建设工期（1~7）{build_total:g} 月", f"项目经理在场（4~7）{pm_total:g} 月",
-         build_total, "", "", f"含质保合计 {all_total:g} 月", "", ""],
+        ["合计", f"建设工期（1~7）{build_total} 天", f"项目经理在场（4~7）{pm_total} 天",
+         build_total, "", "", f"含质保合计 {all_total} 天", "", ""],
         bold=True,
         fill=_FILL_TOTAL,
     )
     ws.freeze_panes = "A2"
-    _widths(ws, (6, 16, 12, 10, 9, 9, 40, 18, 14))
+    _widths(ws, (6, 16, 12, 10, 12, 12, 40, 18, 14))
     ws.append([])
     _write_row(
         ws,
