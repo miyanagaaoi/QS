@@ -173,6 +173,10 @@ _include("report", "/api/reports", "统计报表")
 _include("pm", "/api/pm", "项目管理")
 _include("pm_documents", "/api/pm", "项目管理-配套单据")
 _include("pm_export", "/api/pm", "项目管理-导出")
+# 注意顺序：eq_io 里的 /assets/export、/assets/import 必须比
+# equipment 里的 /assets/{asset_id} 先注册，否则会被当成 asset_id=export
+_include("eq_io", "/api/eq", "设备管理-导入导出")
+_include("equipment", "/api/eq", "设备管理")
 
 # --------------------------------------------------------------------------
 # 前端静态资源（生产由 nginx 托管；若前端已构建则一并由后端提供，便于单容器/单端口演示）

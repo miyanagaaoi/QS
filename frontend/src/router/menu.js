@@ -31,6 +31,21 @@ export const MENU_TREE = [
     ],
   },
   {
+    // 设备管理（CH-014）：设备全生命周期台账，与采购/项目模块互不关联
+    key: 'eq',
+    title: '设备管理',
+    icon: 'Monitor',
+    roles: ['admin', 'buyer'],
+    children: [
+      { key: 'eq-board', title: '统计看板', path: '/eq', icon: 'DataAnalysis' },
+      { key: 'eq-assets', title: '设备台账', path: '/eq/assets', icon: 'Box' },
+      { key: 'eq-events', title: '动态事件', path: '/eq/events', icon: 'Bell' },
+      { key: 'eq-meters', title: '计量检定', path: '/eq/meters', icon: 'Odometer' },
+      { key: 'eq-specials', title: '特种检验', path: '/eq/specials', icon: 'Warning' },
+      { key: 'eq-spares', title: '备件更换', path: '/eq/spares', icon: 'Tools' },
+    ],
+  },
+  {
     key: 'system',
     title: '系统管理',
     icon: 'Setting',

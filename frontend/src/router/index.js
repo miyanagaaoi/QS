@@ -125,6 +125,51 @@ const routes = [
     ],
   },
 
+  // —— 设备管理（CH-014）：独立模块，与报价/项目无关联 ——
+  {
+    path: '/eq',
+    component: AdminLayout,
+    meta: { roles: ['admin', 'buyer'] },
+    children: [
+      {
+        path: '',
+        name: 'eq-board',
+        component: () => import('@/views/equipment/EqBoard.vue'),
+        meta: { title: '设备统计看板', roles: ['admin', 'buyer'] },
+      },
+      {
+        path: 'assets',
+        name: 'eq-assets',
+        component: () => import('@/views/equipment/EqAssets.vue'),
+        meta: { title: '设备台账', roles: ['admin', 'buyer'] },
+      },
+      {
+        path: 'events',
+        name: 'eq-events',
+        component: () => import('@/views/equipment/EqChild.vue'),
+        meta: { title: '设备动态事件', childKind: 'events', roles: ['admin', 'buyer'] },
+      },
+      {
+        path: 'meters',
+        name: 'eq-meters',
+        component: () => import('@/views/equipment/EqChild.vue'),
+        meta: { title: '计量器具检定', childKind: 'meters', roles: ['admin', 'buyer'] },
+      },
+      {
+        path: 'specials',
+        name: 'eq-specials',
+        component: () => import('@/views/equipment/EqChild.vue'),
+        meta: { title: '特种设备检验', childKind: 'specials', roles: ['admin', 'buyer'] },
+      },
+      {
+        path: 'spares',
+        name: 'eq-spares',
+        component: () => import('@/views/equipment/EqChild.vue'),
+        meta: { title: '备件更换', childKind: 'spares', roles: ['admin', 'buyer'] },
+      },
+    ],
+  },
+
   // —— 我方侧：系统管理（仅管理员，采购员菜单也不显示）——
   {
     path: '/system',

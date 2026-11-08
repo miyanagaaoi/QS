@@ -77,6 +77,7 @@ def get_db() -> Generator[Session, None, None]:
 
 def init_db() -> None:
     """建表（原型阶段用 create_all；正式环境改用 Alembic 迁移）。"""
+    from . import eq_models  # noqa: F401  设备管理模块的 5 张表
     from . import models  # noqa: F401  确保模型已注册到 metadata
 
     models.Base.metadata.create_all(bind=engine)
