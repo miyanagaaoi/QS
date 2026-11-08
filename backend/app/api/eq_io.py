@@ -12,7 +12,7 @@ from __future__ import annotations
 from datetime import date, datetime
 from io import BytesIO
 
-from fastapi import APIRouter, Depends, File, Query, Response, UploadFile
+from fastapi import APIRouter, Depends, File, Query, Request, Response, UploadFile
 from openpyxl import Workbook, load_workbook
 from openpyxl.styles import PatternFill
 from openpyxl.utils import get_column_letter
@@ -20,7 +20,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from ..database import get_db
-from ..deps import require_internal
+from ..deps import require_internal, write_audit
 from ..eq_models import (
     EQ_CHECK_WARN_DAYS,
     EQ_WARRANTY_WARN_DAYS,
@@ -44,6 +44,9 @@ from ..schemas import Envelope
 from .equipment import _dec, _err, _str
 
 router = APIRouter()
+
+#: 导入文件大小上限（10MB）：xlsx 台账一般几百 KB，超过多为误传
+MAX_IMPORT_BYTES = 10 * 1024 * 1024
 
 FILL_WARN = PatternFill("solid", fgColor="FFE4B5")  # 橙：临期
 FILL_OVER = PatternFill("solid", fgColor="FFC7CE")  # 红：超期
@@ -371,6 +374,8 @@ def _read_sheet(file: UploadFile) -> tuple[list[str], list[list]]:
     raw = file.file.read()
     if not raw:
         raise _err(400, 40001, "请选择要导入的 Excel 文件")
+    if len(raw) > MAX_IMPORT_BYTES:
+        raise _err(400, 40001, f"文件过大（{len(raw) // 1024 // 1024}MB），请控制在 10MB 以内")
     try:
         wb = load_workbook(BytesIO(raw), data_only=True)
     except Exception as exc:  # noqa: BLE001
@@ -427,6 +432,7 @@ ASSET_SPEC = {
 @router.post("/assets/import", summary="导入设备台账（xlsx）")
 def import_assets(
     file: UploadFile = File(...),
+    request: Request = None,  # type: ignore[assignment]
     db: Session = Depends(get_db),
     user: User = Depends(require_internal),
 ):
@@ -483,6 +489,12 @@ def import_assets(
             reason = detail.get("message") if isinstance(detail, dict) else str(exc)
             errors.append(EqImportError(row=offset, reason=reason))
     db.commit()
+    write_audit(
+        db, request=request, user=user,
+        action="eq.import.assets", target_type="eq_import",
+        summary=f"导入设备主台账：成功 {created} 行 / 失败 {len(errors)} 行",
+    )
+    db.commit()
     return Envelope(data=_result(len(rows), created, errors))
 
 
@@ -523,6 +535,7 @@ EVENT_SPEC = {
 @router.post("/events/import", summary="导入动态事件台账（xlsx）")
 def import_events(
     file: UploadFile = File(...),
+    request: Request = None,  # type: ignore[assignment]
     db: Session = Depends(get_db),
     user: User = Depends(require_internal),
 ):
@@ -567,6 +580,12 @@ def import_events(
             reason = detail.get("message") if isinstance(detail, dict) else str(exc)
             errors.append(EqImportError(row=offset, reason=reason))
     db.commit()
+    write_audit(
+        db, request=request, user=user,
+        action="eq.import.events", target_type="eq_import",
+        summary=f"导入动态事件台账：成功 {created} 行 / 失败 {len(errors)} 行",
+    )
+    db.commit()
     return Envelope(data=_result(len(rows), created, errors))
 
 
@@ -590,6 +609,7 @@ METER_SPEC = {
 @router.post("/meters/import", summary="导入计量器具检定台账（xlsx）")
 def import_meters(
     file: UploadFile = File(...),
+    request: Request = None,  # type: ignore[assignment]
     db: Session = Depends(get_db),
     user: User = Depends(require_internal),
 ):
@@ -632,6 +652,12 @@ def import_meters(
             reason = detail.get("message") if isinstance(detail, dict) else str(exc)
             errors.append(EqImportError(row=offset, reason=reason))
     db.commit()
+    write_audit(
+        db, request=request, user=user,
+        action="eq.import.meters", target_type="eq_import",
+        summary=f"导入计量器具检定台账：成功 {created} 行 / 失败 {len(errors)} 行",
+    )
+    db.commit()
     return Envelope(data=_result(len(rows), created, errors))
 
 
@@ -654,6 +680,7 @@ SPECIAL_SPEC = {
 @router.post("/specials/import", summary="导入特种设备检验台账（xlsx）")
 def import_specials(
     file: UploadFile = File(...),
+    request: Request = None,  # type: ignore[assignment]
     db: Session = Depends(get_db),
     user: User = Depends(require_internal),
 ):
@@ -695,6 +722,12 @@ def import_specials(
             reason = detail.get("message") if isinstance(detail, dict) else str(exc)
             errors.append(EqImportError(row=offset, reason=reason))
     db.commit()
+    write_audit(
+        db, request=request, user=user,
+        action="eq.import.specials", target_type="eq_import",
+        summary=f"导入特种设备检验台账：成功 {created} 行 / 失败 {len(errors)} 行",
+    )
+    db.commit()
     return Envelope(data=_result(len(rows), created, errors))
 
 
@@ -718,6 +751,7 @@ SPARE_SPEC = {
 @router.post("/spares/import", summary="导入备件更换台账（xlsx）")
 def import_spares(
     file: UploadFile = File(...),
+    request: Request = None,  # type: ignore[assignment]
     db: Session = Depends(get_db),
     user: User = Depends(require_internal),
 ):
@@ -763,6 +797,12 @@ def import_spares(
             detail = getattr(exc, "detail", None)
             reason = detail.get("message") if isinstance(detail, dict) else str(exc)
             errors.append(EqImportError(row=offset, reason=reason))
+    db.commit()
+    write_audit(
+        db, request=request, user=user,
+        action="eq.import.spares", target_type="eq_import",
+        summary=f"导入备件更换台账：成功 {created} 行 / 失败 {len(errors)} 行",
+    )
     db.commit()
     return Envelope(data=_result(len(rows), created, errors))
 

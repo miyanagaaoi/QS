@@ -95,7 +95,6 @@ function openEdit(row) {
 function fieldOptions(field) {
   if (field.type === 'asset') return []
   if (field.optionsKey) return meta.value[field.optionsKey] || []
-  if (field.prop === 'old_disposal') return meta.value.old_part_disposals || []
   return []
 }
 
@@ -441,12 +440,6 @@ onMounted(async () => {
               :name="tab.key"
             >
               <el-table :data="detail.data[tab.key]" border size="small" max-height="320">
-                <el-table-column
-                  v-for="col in (ASSET_COLUMNS.length, [])"
-                  :key="col.prop"
-                  :prop="col.prop"
-                  :label="col.label"
-                />
                 <template v-if="tab.key === 'events'">
                   <el-table-column prop="event_type" label="类型" width="100" />
                   <el-table-column prop="occur_date" label="发生" width="102" />

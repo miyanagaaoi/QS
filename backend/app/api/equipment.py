@@ -20,12 +20,12 @@ from __future__ import annotations
 from datetime import date
 from decimal import Decimal, InvalidOperation
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
 from ..database import get_db
-from ..deps import require_internal
+from ..deps import require_internal, write_audit
 from ..eq_models import (
     EQ_ACCEPT_RESULT,
     EQ_ASSET_STATUS,
@@ -93,6 +93,12 @@ def _str(value) -> str | None:
 
 def _fmt(value: Decimal | None) -> str | None:
     return str(value) if value is not None else None
+
+
+def _check_range(start: date | None, end: date | None, label: str) -> None:
+    """结束日期不能早于开始日期（质保期、检定/检验有效期、事件完成日期）。"""
+    if start and end and end < start:
+        raise _err(400, 40001, f"{label}：结束日期不能早于开始日期")
 
 
 def _days_until(target: date | None, today: date) -> int | None:
@@ -371,9 +377,11 @@ def _apply_asset(row: EqAsset, payload: EqAssetIn) -> None:
 @router.post("/assets", summary="新增设备")
 def create_asset(
     payload: EqAssetIn,
+    request: Request,
     db: Session = Depends(get_db),
     user: User = Depends(require_internal),
 ):
+    _check_range(payload.warranty_start, payload.warranty_end, "质保期")
     if db.scalar(select(func.count()).select_from(EqAsset).where(EqAsset.asset_no == payload.asset_no.strip())):
         raise _err(409, 40900, "台账编号已存在")
     if payload.is_special and not _str(payload.special_reg_no):
@@ -381,6 +389,12 @@ def create_asset(
     row = EqAsset(created_by=user.id)
     _apply_asset(row, payload)
     db.add(row)
+    db.flush()
+    write_audit(
+        db, request=request, user=user,
+        action="eq.asset.create", target_type="eq_asset", target_id=row.id,
+        summary=f"设备建档 {row.asset_no} {row.name}（状态={row.status}）",
+    )
     db.commit()
     db.refresh(row)
     return Envelope(data=_asset_out(row, app_now().date()))
@@ -390,12 +404,14 @@ def create_asset(
 def update_asset(
     asset_id: int,
     payload: EqAssetIn,
+    request: Request,
     db: Session = Depends(get_db),
     user: User = Depends(require_internal),
 ):
     row = db.get(EqAsset, asset_id)
     if row is None:
         raise _err(404, 40400, "设备不存在")
+    _check_range(payload.warranty_start, payload.warranty_end, "质保期")
     dup = db.scalar(
         select(func.count())
         .select_from(EqAsset)
@@ -405,8 +421,15 @@ def update_asset(
         raise _err(409, 40900, "台账编号已存在")
     if payload.is_special and not _str(payload.special_reg_no):
         raise _err(400, 40001, "特种设备必须填写特种设备登记号")
+    old_status = row.status
     _apply_asset(row, payload)
     row.updated_at = app_now()
+    write_audit(
+        db, request=request, user=user,
+        action="eq.asset.update", target_type="eq_asset", target_id=row.id,
+        summary=f"修改设备 {row.asset_no} {row.name}"
+        + (f"（状态 {old_status} → {row.status}）" if old_status != row.status else ""),
+    )
     db.commit()
     db.refresh(row)
     return Envelope(data=_asset_out(row, app_now().date()))
@@ -415,6 +438,7 @@ def update_asset(
 @router.delete("/assets/{asset_id}", summary="删除设备（有子记录时禁止）")
 def delete_asset(
     asset_id: int,
+    request: Request,
     db: Session = Depends(get_db),
     user: User = Depends(require_internal),
 ):
@@ -431,7 +455,13 @@ def delete_asset(
     if used:
         detail = "、".join(f"{k} {v} 条" for k, v in used.items())
         raise _err(409, 40900, f"该设备还有子台账记录（{detail}），请先删除子记录再删设备")
+    asset_no, name = row.asset_no, row.name
     db.delete(row)
+    write_audit(
+        db, request=request, user=user,
+        action="eq.asset.delete", target_type="eq_asset", target_id=asset_id,
+        summary=f"删除设备 {asset_no} {name}",
+    )
     db.commit()
     return Envelope(data={"deleted": asset_id})
 
@@ -488,6 +518,7 @@ def list_events(
 
 
 def _apply_event(row: EqEvent, payload: EqEventIn) -> None:
+    _check_range(payload.occur_date, payload.actual_date, "事件实际完成")
     row.asset_id = payload.asset_id
     row.event_type = payload.event_type
     row.occur_date = payload.occur_date
@@ -581,6 +612,7 @@ def list_meters(
 
 
 def _apply_meter(row: EqMeter, payload: EqMeterIn) -> None:
+    _check_range(payload.last_check_date, payload.valid_until, "检定有效期")
     row.asset_id = payload.asset_id
     row.name = payload.name.strip()
     row.model = _str(payload.model)
@@ -671,6 +703,7 @@ def list_specials(
 
 
 def _apply_special(row: EqSpecial, payload: EqSpecialIn) -> None:
+    _check_range(payload.last_check_date, payload.valid_until, "检验有效期")
     row.asset_id = payload.asset_id
     row.name = _str(payload.name)
     row.reg_no = _str(payload.reg_no)

@@ -192,7 +192,7 @@ export const CHILD_CONFIG = {
       { prop: 'qty', label: '更换数量', type: 'number', span: 8 },
       { prop: 'unit_price', label: '单价(元)', type: 'number', span: 8 },
       { prop: 'amount', label: '金额(元)', type: 'number', span: 8, placeholder: '留空按数量×单价自动算' },
-      { prop: 'old_disposal', label: '换下旧件处置', type: 'select', span: 8 },
+      { prop: 'old_disposal', label: '换下旧件处置', type: 'select', span: 8, optionsKey: 'old_part_disposals' },
       { prop: 'executor', label: '执行人', type: 'input', span: 8 },
       { prop: 'supplier', label: '供应商', type: 'input', span: 12 },
       { prop: 'reason', label: '更换原因', type: 'textarea', span: 24 },

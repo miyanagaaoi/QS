@@ -199,7 +199,13 @@ def test_delete_asset_blocked_by_children(client, admin_token):
 # ---------------------------------------------------------------------------
 def test_board_statistics(client, admin_token):
     asset = _create_asset(
-        client, admin_token, "EQ-B-001", status="维修中", importance="B", warranty_end="2000-01-01"
+        client,
+        admin_token,
+        "EQ-B-001",
+        status="维修中",
+        importance="B",
+        warranty_start="1999-01-01",
+        warranty_end="2000-01-01",
     )
     client.post(
         "/api/eq/events",
@@ -287,3 +293,48 @@ def test_permissions(client, buyer_token, supplier_token):
     denied = client.get("/api/eq/assets", headers=auth(supplier_token))
     assert denied.status_code == 403
     assert denied.json()["code"] == 40300
+
+
+def test_date_range_validation(client, admin_token):
+    """日期倒挂必须被拒绝：质保期、检定/检验有效期。""""(CH-015)"""
+    bad = client.post(
+        "/api/eq/assets",
+        json=_asset_payload("EQ-R-001", warranty_start="2026-12-01", warranty_end="2025-01-01"),
+        headers=auth(admin_token),
+    )
+    assert bad.status_code == 400
+    assert "质保期" in bad.json()["message"]
+
+    asset = _create_asset(client, admin_token, "EQ-R-002")
+    bad_meter = client.post(
+        "/api/eq/meters",
+        json={
+            "asset_id": asset["id"],
+            "name": "倒挂压力表",
+            "last_check_date": "2026-12-01",
+            "valid_until": "2026-01-01",
+        },
+        headers=auth(admin_token),
+    )
+    assert bad_meter.status_code == 400
+    assert "检定有效期" in bad_meter.json()["message"]
+
+
+def test_equipment_operations_are_audited(client, admin_token):
+    """设备建档/改状态/删除都要写操作日志（与其它模块一致）。"""
+    asset = _create_asset(client, admin_token, "EQ-AUDIT-001")
+    client.put(
+        f"/api/eq/assets/{asset['id']}",
+        json=_asset_payload("EQ-AUDIT-001", status="维修中"),
+        headers=auth(admin_token),
+    )
+    logs = client.get(
+        "/api/admin/audit-logs?action=eq.asset.create&page_size=5", headers=auth(admin_token)
+    ).json()["data"]
+    assert logs["meta"]["total"] >= 1
+    assert any("设备建档" in (item.get("summary") or "") for item in logs["items"])
+
+    updated = client.get(
+        "/api/admin/audit-logs?action=eq.asset.update&page_size=5", headers=auth(admin_token)
+    ).json()["data"]
+    assert any("状态 在用 → 维修中" in (item.get("summary") or "") for item in updated["items"])
